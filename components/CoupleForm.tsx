@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import type { CoupleData } from '../types';
 import InputField from './InputField';
 import SelectField from './SelectField';
+import ConfirmationModal from './ConfirmationModal';
 import { fetchAddressByCep } from '../services/viaCepService';
 import { saveCoupleData } from '../services/supabaseService';
 
@@ -29,7 +30,7 @@ const formatPersonDataForPdf = (person: 'Ele' | 'Ela', data: CoupleData) => {
 };
 
 const generatePdf = (data: CoupleData) => {
-  const { jsPDF, autoTable } = jspdf;
+  const { jsPDF } = jspdf;
   const doc = new jsPDF();
 
   doc.setFontSize(22);
@@ -38,7 +39,8 @@ const generatePdf = (data: CoupleData) => {
   doc.setFontSize(12);
   doc.text(`E-mail de Contato: ${data.email}`, 105, 30, { align: 'center' });
 
-  autoTable(doc, {
+  // Correct way to call autoTable when using the UMD library from CDN
+  jspdf.autoTable(doc, {
     startY: 40,
     head: [['Dados do Noivo', '']],
     body: formatPersonDataForPdf('Ele', data),
@@ -46,7 +48,7 @@ const generatePdf = (data: CoupleData) => {
     theme: 'striped',
   });
 
-  autoTable(doc, {
+  jspdf.autoTable(doc, {
     startY: (doc as any).lastAutoTable.finalY + 10,
     head: [['Dados da Noiva', '']],
     body: formatPersonDataForPdf('Ela', data),
@@ -131,221 +133,210 @@ const HeartIcon = () => (
     </svg>
 );
 
+
 const CoupleForm: React.FC = () => {
-  const [formData, setFormData] = useState<CoupleData>(initialFormData);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [submittedData, setSubmittedData] = useState<CoupleData | null>(null);
+    const [formData, setFormData] = useState<CoupleData>(initialFormData);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState(false);
+    const [submittedData, setSubmittedData] = useState<CoupleData | null>(null);
+    const [emailError, setEmailError] = useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const validateEmail = (email: string) => {
-    if (!email) return false;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+    const validateEmail = (email: string) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    
-    if (name === 'foneWatsAppEle' || name === 'foneWatsAppEla') {
-      let onlyNums = value.replace(/\D/g, '');
-      if (onlyNums.length > 11) onlyNums = onlyNums.substring(0, 11);
-      
-      let maskedValue = onlyNums;
-      if (onlyNums.length > 2) {
-        maskedValue = `(${onlyNums.substring(0, 2)}) ${onlyNums.substring(2)}`;
-        if (onlyNums.length > 6) {
-          if (onlyNums.length === 11) {
-            maskedValue = `(${onlyNums.substring(0, 2)}) ${onlyNums.substring(2, 7)}-${onlyNums.substring(7)}`;
-          } else {
-            maskedValue = `(${onlyNums.substring(0, 2)}) ${onlyNums.substring(2, 6)}-${onlyNums.substring(6, 10)}`;
-          }
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        
+        let processedValue = value;
+        if (name === 'foneWatsAppEle' || name === 'foneWatsAppEla') {
+            const onlyDigits = value.replace(/\D/g, '');
+            if (onlyDigits.length <= 10) {
+                 processedValue = onlyDigits
+                    .replace(/(\d{2})(\d)/, '($1) $2')
+                    .replace(/(\d{4})(\d)/, '$1-$2');
+            } else {
+                 processedValue = onlyDigits
+                    .replace(/(\d{2})(\d)/, '($1) $2')
+                    .replace(/(\d{5})(\d)/, '$1-$2')
+                    .slice(0, 15);
+            }
         }
-      }
-      setFormData((prev) => ({ ...prev, [name]: maskedValue }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+        
+        setFormData(prev => ({ ...prev, [name]: processedValue }));
 
-      if (name === 'email') {
-        setEmailError(value && !validateEmail(value) ? 'Por favor, insira um formato de e-mail válido.' : null);
-      }
-    }
-  }, []);
+        if (name === 'email') {
+            if (value && !validateEmail(value)) {
+                setEmailError('Por favor, insira um e-mail válido.');
+            } else {
+                setEmailError(null);
+            }
+        }
+    };
 
-  const handleCepBlur = async (person: 'Ele' | 'Ela') => {
-    const cep = person === 'Ele' ? formData.cepEle : formData.cepEla;
-    const addressData = await fetchAddressByCep(cep);
-    if (addressData) {
-      setFormData((prev) => ({
-        ...prev,
-        [`endereco${person}`]: addressData.logradouro || '',
-        [`bairro${person}`]: addressData.bairro || '',
-        [`cidade${person}`]: addressData.localidade || '',
-        [`uf${person}`]: addressData.uf || '',
-      }));
-    }
-  };
+    const handleCepBlur = useCallback(async (person: 'Ele' | 'Ela') => {
+        const cep = formData[person === 'Ele' ? 'cepEle' : 'cepEla'];
+        const address = await fetchAddressByCep(cep);
+        if (address) {
+            setFormData(prev => ({
+                ...prev,
+                [`endereco${person}`]: address.logradouro || '',
+                [`bairro${person}`]: address.bairro || '',
+                [`cidade${person}`]: address.localidade || '',
+                [`uf${person}`]: address.uf || '',
+            }));
+        }
+    }, [formData]);
+    
+    const handleReview = (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setError(null);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+        if (!validateEmail(formData.email)) {
+            setEmailError('O formato do e-mail é inválido.');
+            return;
+        }
+        setIsModalOpen(true);
+    };
 
-    if (!validateEmail(formData.email)) {
-      setEmailError('É necessário um e-mail válido para finalizar a inscrição.');
-      return; 
+    const handleConfirmAndSubmit = async () => {
+        setIsModalOpen(false);
+        setLoading(true);
+        const result = await saveCoupleData(formData);
+        setLoading(false);
+
+        if (result.success) {
+            setSuccess(true);
+            setSubmittedData(formData);
+            setFormData(initialFormData);
+        } else {
+            setError(result.error || 'Ocorreu um erro desconhecido ao salvar os dados.');
+        }
+    };
+
+    if (success && submittedData) {
+        return (
+            <div className="bg-white p-8 rounded-lg shadow-lg text-center">
+                <h2 className="text-2xl font-bold text-green-600 mb-4">Inscrição Realizada com Sucesso!</h2>
+                <p className="text-gray-700 mb-6">Obrigado por se inscrever. Os seus dados foram enviados para a Pastoral Familiar.</p>
+                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <button
+                        onClick={() => generatePdf(submittedData)}
+                        className="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300"
+                    >
+                        Baixar Cópia em PDF
+                    </button>
+                    <button
+                        onClick={() => generateCsv(submittedData)}
+                        className="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-300"
+                    >
+                        Baixar Dados em CSV
+                    </button>
+                </div>
+                <button
+                    onClick={() => setSuccess(false)}
+                    className="mt-6 text-indigo-600 hover:text-indigo-800 font-semibold"
+                >
+                    Realizar Nova Inscrição
+                </button>
+            </div>
+        );
     }
     
-    setLoading(true);
-    setError(null);
-    setSuccess(false);
-
-    const result = await saveCoupleData(formData);
-
-    if (result.success) {
-      setSuccess(true);
-      setSubmittedData(formData); // Store data for file generation
-      setFormData(initialFormData);
-      setEmailError(null);
-    } else {
-      setError(result.error || 'Ocorreu um erro desconhecido.');
-    }
-    setLoading(false);
-  };
-
-  const handleNewRegistration = () => {
-    setSuccess(false);
-    setSubmittedData(null);
-  };
-
-  if (success && submittedData) {
     return (
-      <div className="text-center p-8 bg-green-50 border border-green-200 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-green-700 mb-4">Inscrição Realizada com Sucesso!</h2>
-        <p className="text-gray-600 mb-6">Seus dados foram enviados. Para sua conveniência, você pode baixar uma cópia da inscrição.</p>
-        
-        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-6">
-          <button
-            onClick={() => generatePdf(submittedData)}
-            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 shadow-md"
-          >
-            Baixar Inscrição (PDF)
-          </button>
-          <button
-            onClick={() => generateCsv(submittedData)}
-            className="px-6 py-3 bg-gray-700 text-white font-semibold rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors duration-200 shadow-md"
-          >
-            Exportar Dados (CSV)
-          </button>
-        </div>
-        
-        <p className="text-sm text-gray-500">O arquivo CSV é para uso administrativo.</p>
-        
-        <button
-          onClick={handleNewRegistration}
-          className="mt-8 px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          Nova Inscrição
-        </button>
-      </div>
+        <>
+        {isModalOpen && (
+            <ConfirmationModal 
+                data={formData}
+                onConfirm={handleConfirmAndSubmit}
+                onClose={() => setIsModalOpen(false)}
+            />
+        )}
+        <form onSubmit={handleReview} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
+            {/* General Section */}
+            <div className="border-b border-gray-200 pb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Informações do Casal</h2>
+                <div className="mt-4">
+                    <InputField id="email" label="E-mail Principal do Casal" type="email" value={formData.email} onChange={handleChange} required error={emailError} />
+                </div>
+            </div>
+
+            {/* Groom Section */}
+            <div className="space-y-6">
+                 <div className="flex items-center gap-4">
+                    <PersonIcon />
+                    <h2 className="text-2xl font-bold text-gray-800">Dados do Noivo</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <InputField id="nomeCompletoEle" label="Nome Completo" value={formData.nomeCompletoEle} onChange={handleChange} required />
+                    <InputField id="dataNascimentoEle" label="Data de Nascimento" type="date" value={formData.dataNascimentoEle} onChange={handleChange} required />
+                    <InputField id="foneWatsAppEle" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEle} onChange={handleChange} placeholder="(00) 00000-0000" required />
+                    <InputField id="cepEle" label="CEP" value={formData.cepEle} onChange={handleChange} onBlur={() => handleCepBlur('Ele')} required />
+                    <InputField id="enderecoEle" label="Endereço" value={formData.enderecoEle} onChange={handleChange} />
+                    <InputField id="complementoEle" label="Complemento" value={formData.complementoEle} onChange={handleChange} />
+                    <InputField id="bairroEle" label="Bairro" value={formData.bairroEle} onChange={handleChange} />
+                    <InputField id="cidadeEle" label="Cidade" value={formData.cidadeEle} onChange={handleChange} />
+                    <InputField id="ufEle" label="UF" value={formData.ufEle} onChange={handleChange} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SelectField id="participaGrupoEle" label="Participa de algum grupo da paróquia?" value={formData.participaGrupoEle} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
+                    {formData.participaGrupoEle === 'sim' && (
+                        <InputField id="qualGrupoEle" label="Se sim, qual?" value={formData.qualGrupoEle} onChange={handleChange} required />
+                    )}
+                </div>
+            </div>
+            
+            <div className="flex justify-center items-center">
+                 <HeartIcon />
+            </div>
+
+            {/* Bride Section */}
+            <div className="space-y-6">
+                 <div className="flex items-center gap-4">
+                    <PersonIcon />
+                    <h2 className="text-2xl font-bold text-gray-800">Dados da Noiva</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <InputField id="nomeCompletoEla" label="Nome Completo" value={formData.nomeCompletoEla} onChange={handleChange} required />
+                    <InputField id="dataNascimentoEla" label="Data de Nascimento" type="date" value={formData.dataNascimentoEla} onChange={handleChange} required />
+                    <InputField id="foneWatsAppEla" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEla} onChange={handleChange} placeholder="(00) 00000-0000" required />
+                    <InputField id="cepEla" label="CEP" value={formData.cepEla} onChange={handleChange} onBlur={() => handleCepBlur('Ela')} required />
+                    <InputField id="enderecoEla" label="Endereço" value={formData.enderecoEla} onChange={handleChange} />
+                    <InputField id="complementoEla" label="Complemento" value={formData.complementoEla} onChange={handleChange} />
+                    <InputField id="bairroEla" label="Bairro" value={formData.bairroEla} onChange={handleChange} />
+                    <InputField id="cidadeEla" label="Cidade" value={formData.cidadeEla} onChange={handleChange} />
+                    <InputField id="ufEla" label="UF" value={formData.ufEla} onChange={handleChange} />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <SelectField id="participaGrupoEla" label="Participa de algum grupo da paróquia?" value={formData.participaGrupoEla} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
+                    {formData.participaGrupoEla === 'sim' && (
+                        <InputField id="qualGrupoEla" label="Se sim, qual?" value={formData.qualGrupoEla} onChange={handleChange} required />
+                    )}
+                </div>
+            </div>
+
+            {/* Submission Section */}
+            <div className="pt-6 border-t border-gray-200">
+                {error && (
+                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md mb-6" role="alert" style={{ whiteSpace: 'pre-wrap' }}>
+                        <strong className="font-bold">Erro:</strong>
+                        <span className="block sm:inline ml-2">{error}</span>
+                    </div>
+                )}
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-wait transition duration-300"
+                >
+                    {loading ? 'Enviando...' : 'Revisar e Finalizar Inscrição'}
+                </button>
+            </div>
+        </form>
+        </>
     );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow-lg">
-      <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="flex items-center gap-4 mb-6">
-            <PersonIcon />
-            <h2 className="text-2xl font-bold text-gray-800">Dados do Noivo</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
-            <InputField id="nomeCompletoEle" label="Nome Completo" value={formData.nomeCompletoEle} onChange={handleChange} required />
-          </div>
-          <InputField id="dataNascimentoEle" label="Data de Nascimento" type="date" value={formData.dataNascimentoEle} onChange={handleChange} required />
-          <InputField id="foneWatsAppEle" label="Fone/WhatsApp" type="tel" placeholder="(00) 00000-0000" value={formData.foneWatsAppEle} onChange={handleChange} required />
-          <InputField id="cepEle" label="CEP" value={formData.cepEle} onChange={handleChange} onBlur={() => handleCepBlur('Ele')} placeholder="00000-000" required />
-          <InputField id="enderecoEle" label="Endereço" value={formData.enderecoEle} onChange={handleChange} required disabled={false}/>
-          <InputField id="complementoEle" label="Complemento" value={formData.complementoEle} onChange={handleChange} />
-          <InputField id="bairroEle" label="Bairro" value={formData.bairroEle} onChange={handleChange} required disabled={false}/>
-          <InputField id="cidadeEle" label="Cidade" value={formData.cidadeEle} onChange={handleChange} required disabled={false}/>
-          <InputField id="ufEle" label="UF" value={formData.ufEle} onChange={handleChange} required disabled={false}/>
-          
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-            <SelectField
-              id="participaGrupoEle"
-              label="Participa de algum grupo da paróquia?"
-              value={formData.participaGrupoEle}
-              onChange={handleChange}
-              options={[{ value: 'nao', label: 'Não' }, { value: 'sim', label: 'Sim' }]}
-              required
-            />
-            {formData.participaGrupoEle === 'sim' && (
-              <InputField id="qualGrupoEle" label="Se sim, qual?" value={formData.qualGrupoEle} onChange={handleChange} required />
-            )}
-          </div>
-        </div>
-      </div>
-
-       <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="flex items-center gap-4 mb-6">
-            <HeartIcon />
-            <h2 className="text-2xl font-bold text-gray-800">Dados da Noiva</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-2">
-            <InputField id="nomeCompletoEla" label="Nome Completo" value={formData.nomeCompletoEla} onChange={handleChange} required />
-          </div>
-          <InputField id="dataNascimentoEla" label="Data de Nascimento" type="date" value={formData.dataNascimentoEla} onChange={handleChange} required />
-          <InputField id="foneWatsAppEla" label="Fone/WhatsApp" type="tel" placeholder="(00) 00000-0000" value={formData.foneWatsAppEla} onChange={handleChange} required />
-          <InputField id="cepEla" label="CEP" value={formData.cepEla} onChange={handleChange} onBlur={() => handleCepBlur('Ela')} placeholder="00000-000" required />
-          <InputField id="enderecoEla" label="Endereço" value={formData.enderecoEla} onChange={handleChange} required disabled={false}/>
-          <InputField id="complementoEla" label="Complemento" value={formData.complementoEla} onChange={handleChange} />
-          <InputField id="bairroEla" label="Bairro" value={formData.bairroEla} onChange={handleChange} required disabled={false}/>
-          <InputField id="cidadeEla" label="Cidade" value={formData.cidadeEla} onChange={handleChange} required disabled={false}/>
-          <InputField id="ufEla" label="UF" value={formData.ufEla} onChange={handleChange} required disabled={false}/>
-          
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-            <SelectField
-              id="participaGrupoEla"
-              label="Participa de algum grupo da paróquia?"
-              value={formData.participaGrupoEla}
-              onChange={handleChange}
-              options={[{ value: 'nao', label: 'Não' }, { value: 'sim', label: 'Sim' }]}
-              required
-            />
-            {formData.participaGrupoEla === 'sim' && (
-              <InputField id="qualGrupoEla" label="Se sim, qual?" value={formData.qualGrupoEla} onChange={handleChange} required />
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">Email para Contato</h2>
-        <InputField 
-          id="email" 
-          label="E-mail Principal do Casal" 
-          type="email" 
-          value={formData.email} 
-          onChange={handleChange} 
-          required 
-          placeholder="email@exemplo.com"
-          error={emailError}
-        />
-      </div>
-
-      <div>
-        {error && <div className="mb-4 text-center p-3 bg-red-100 text-red-700 rounded-md">{error}</div>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-wait"
-        >
-          {loading ? 'Enviando...' : 'Finalizar Inscrição'}
-        </button>
-      </div>
-    </form>
-  );
 };
 
 export default CoupleForm;
