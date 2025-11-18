@@ -2,7 +2,7 @@ import React from 'react';
 
 interface InputFieldProps {
   id: string;
-  label: string;
+  label: React.ReactNode; // Alterado de string para React.ReactNode
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   type?: 'text' | 'email' | 'date' | 'tel';

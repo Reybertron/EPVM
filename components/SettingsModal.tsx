@@ -1,28 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ConfigData } from '../types';
-import { fetchConfig, saveConfig } from '../services/supabaseService';
+import { fetchConfig, saveConfig, uploadLogoImage } from '../services/supabaseService';
+import { fetchAddressByCep } from '../services/viaCepService';
 import InputField from './InputField';
+import ImageUploadField from './ImageUploadField';
 
 interface SettingsModalProps {
     onClose: () => void;
 }
 
+const initialConfigState: ConfigData = {
+    datainicio: '',
+    datafim: '',
+    paroquia: '',
+    cep: '',
+    endereco: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
+    diocese: '',
+    logo_diocese: '',
+    paroco: '',
+    logo_paroquia: '',
+    coordenador_pastoral: '',
+    logo_pastoral: '',
+};
+
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
-    const [config, setConfig] = useState<ConfigData>({ datainicio: '', datafim: '' });
+    const [config, setConfig] = useState<ConfigData>(initialConfigState);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [uploading, setUploading] = useState<{ [key: string]: boolean }>({
+        logo_paroquia: false,
+        logo_diocese: false,
+        logo_pastoral: false,
+    });
 
     useEffect(() => {
         const loadConfig = async () => {
             setLoading(true);
             const result = await fetchConfig();
             if (result.success && result.data) {
-                setConfig({
-                    datainicio: result.data.datainicio || '',
-                    datafim: result.data.datafim || '',
-                });
+                const loadedConfig: ConfigData = { ...initialConfigState };
+                for (const key in loadedConfig) {
+                    if (result.data.hasOwnProperty(key)) {
+                        (loadedConfig as any)[key] = (result.data as any)[key] || '';
+                    }
+                }
+                setConfig(loadedConfig);
             } else {
                 setError(result.error || 'Falha ao carregar configurações.');
             }
@@ -33,15 +60,47 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setConfig(prev => ({ ...prev, [e.target.name]: e.target.value }));
-        setSuccess(null); // Clear success message on change
+        setError(null);
+        setSuccess(null);
     };
+
+    const handleImageUpload = async (file: File, fieldName: keyof ConfigData) => {
+        setUploading(prev => ({ ...prev, [fieldName]: true }));
+        setError(null);
+        setSuccess(null);
+
+        const result = await uploadLogoImage(file);
+
+        if (result.success && result.data) {
+            setConfig(prev => ({ ...prev, [fieldName]: result.data.publicUrl }));
+            setSuccess(`Imagem enviada! Clique em "Salvar Alterações" para confirmar.`);
+        } else {
+            setError(result.error || `Falha ao enviar a imagem.`);
+        }
+        setUploading(prev => ({ ...prev, [fieldName]: false }));
+    };
+    
+    const handleCepBlur = useCallback(async () => {
+        if (!config.cep) return;
+        const address = await fetchAddressByCep(config.cep);
+        if (address) {
+            setConfig(prev => ({
+                ...prev,
+                endereco: address.logradouro || '',
+                bairro: address.bairro || '',
+                cidade: address.localidade || '',
+                uf: address.uf || '',
+            }));
+        }
+    }, [config.cep]);
 
     const handleSave = async () => {
         setSaving(true);
         setError(null);
         setSuccess(null);
         
-        const dataToSave: ConfigData = {
+        const dataToSave: Partial<ConfigData> = {
+            ...config,
             datainicio: config.datainicio || null,
             datafim: config.datafim || null,
         };
@@ -57,51 +116,93 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
-                <div className="p-6 border-b">
-                    <h2 id="settings-modal-title" className="text-2xl font-extrabold text-gray-900">Configurações do EPVM</h2>
-                    <p className="text-sm text-gray-600 mt-1">Defina o período de inscrições.</p>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="p-6 border-b sticky top-0 bg-white z-10">
+                    <h2 id="settings-modal-title" className="text-2xl font-extrabold text-gray-900">Configurações Gerais</h2>
+                    <p className="text-sm text-gray-600 mt-1">Gerencie as informações da paróquia e do evento.</p>
                 </div>
 
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-6 overflow-y-auto">
                     {loading ? (
                         <p role="status">Carregando...</p>
                     ) : (
-                        <>
-                            <InputField
-                                id="datainicio"
-                                label="Data de Abertura das Inscrições"
-                                type="date"
-                                value={config.datainicio || ''}
-                                onChange={handleChange}
-                            />
-                            <InputField
-                                id="datafim"
-                                label="Data de Encerramento das Inscrições"
-                                type="date"
-                                value={config.datafim || ''}
-                                onChange={handleChange}
-                            />
-                        </>
+                        <div className="space-y-8">
+                            {/* Período de Inscrições */}
+                            <fieldset>
+                                <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Período de Inscrições</legend>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <InputField id="datainicio" label="Data de Abertura" type="date" value={config.datainicio || ''} onChange={handleChange} />
+                                    <InputField id="datafim" label="Data de Encerramento" type="date" value={config.datafim || ''} onChange={handleChange} />
+                                </div>
+                            </fieldset>
+                            
+                            {/* Dados da Paróquia */}
+                            <fieldset>
+                                 <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Dados da Paróquia</legend>
+                                 <div className="space-y-4">
+                                    <InputField id="paroquia" label="Nome da Paróquia" value={config.paroquia || ''} onChange={handleChange} />
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <InputField id="cep" label="CEP" value={config.cep || ''} onChange={handleChange} onBlur={handleCepBlur} />
+                                        <div className="md:col-span-2">
+                                            <InputField id="endereco" label="Endereço" value={config.endereco || ''} onChange={handleChange} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <InputField id="bairro" label="Bairro" value={config.bairro || ''} onChange={handleChange} />
+                                        <InputField id="cidade" label="Cidade" value={config.cidade || ''} onChange={handleChange} />
+                                        <InputField id="uf" label="UF" value={config.uf || ''} onChange={handleChange} />
+                                    </div>
+                                 </div>
+                            </fieldset>
+                            
+                             {/* Responsáveis */}
+                             <fieldset>
+                                <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Responsáveis</legend>
+                                <div className="space-y-4">
+                                     <InputField id="diocese" label="Nome da Diocese" value={config.diocese || ''} onChange={handleChange} />
+                                     <InputField id="paroco" label="Nome do Pároco" value={config.paroco || ''} onChange={handleChange} />
+                                     <InputField id="coordenador_pastoral" label="Coordenador(a) da Pastoral" value={config.coordenador_pastoral || ''} onChange={handleChange} />
+                                </div>
+                            </fieldset>
+
+                           {/* Logos */}
+                            <fieldset>
+                                <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Identidade Visual</legend>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <ImageUploadField
+                                        id="logo_paroquia"
+                                        label="Logo da Paróquia"
+                                        value={config.logo_paroquia}
+                                        isUploading={uploading.logo_paroquia}
+                                        onFileSelect={(file) => handleImageUpload(file, 'logo_paroquia')}
+                                    />
+                                    <ImageUploadField
+                                        id="logo_diocese"
+                                        label="Logo da Diocese"
+                                        value={config.logo_diocese}
+                                        isUploading={uploading.logo_diocese}
+                                        onFileSelect={(file) => handleImageUpload(file, 'logo_diocese')}
+                                    />
+                                    <ImageUploadField
+                                        id="logo_pastoral"
+                                        label="Logo da Pastoral"
+                                        value={config.logo_pastoral}
+                                        isUploading={uploading.logo_pastoral}
+                                        onFileSelect={(file) => handleImageUpload(file, 'logo_pastoral')}
+                                    />
+                                </div>
+                            </fieldset>
+                        </div>
                     )}
-                    {error && <p className="mt-2 text-sm text-red-600" role="alert">{error}</p>}
-                    {success && <p className="mt-2 text-sm text-green-600" role="status">{success}</p>}
+                    {error && <p className="mt-4 text-sm text-red-600" role="alert" style={{ whiteSpace: 'pre-wrap' }}>{error}</p>}
+                    {success && <p className="mt-4 text-sm text-green-600" role="status">{success}</p>}
                 </div>
 
-                <div className="p-4 bg-gray-50 border-t flex flex-col sm:flex-row-reverse gap-3">
-                    <button
-                        type="button"
-                        onClick={handleSave}
-                        disabled={saving || loading}
-                        className="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-wait"
-                    >
-                        {saving ? 'Salvando...' : 'Salvar'}
+                <div className="p-4 bg-gray-50 border-t sticky bottom-0 flex flex-col sm:flex-row-reverse gap-3">
+                    <button type="button" onClick={handleSave} disabled={saving || loading} className="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-6 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-wait">
+                        {saving ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="w-full sm:w-auto inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
+                    <button type="button" onClick={onClose} className="w-full sm:w-auto inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-6 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         Fechar
                     </button>
                 </div>

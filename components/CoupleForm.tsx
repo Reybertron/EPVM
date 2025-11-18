@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { CoupleData } from '../types';
 import InputField from './InputField';
 import SelectField from './SelectField';
 import ConfirmationModal from './ConfirmationModal';
 import { fetchAddressByCep } from '../services/viaCepService';
-import { saveCoupleData, fetchConfig } from '../services/supabaseService';
+import { saveCoupleData } from '../services/supabaseService';
 
 // Let TypeScript know about the global variables from the CDN scripts
 declare const jspdf: any;
@@ -142,42 +142,6 @@ const CoupleForm: React.FC = () => {
     const [submittedData, setSubmittedData] = useState<CoupleData | null>(null);
     const [emailError, setEmailError] = useState<string | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
-    const [registrationMessage, setRegistrationMessage] = useState('');
-    const [isLoadingConfig, setIsLoadingConfig] = useState(true);
-
-    useEffect(() => {
-        const checkRegistrationPeriod = async () => {
-            const { success, data, error } = await fetchConfig();
-            if (success && data) {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Normalize today's date
-
-                const startDate = data.datainicio ? new Date(data.datainicio + 'T00:00:00') : null;
-                const endDate = data.datafim ? new Date(data.datafim + 'T00:00:00') : null;
-
-                if (!startDate || !endDate) {
-                    setIsRegistrationOpen(false);
-                    setRegistrationMessage('O período de inscrições ainda não foi configurado.');
-                } else if (today < startDate) {
-                    setIsRegistrationOpen(false);
-                    setRegistrationMessage(`As inscrições abrirão em ${startDate.toLocaleDateString('pt-BR')}.`);
-                } else if (today > endDate) {
-                    setIsRegistrationOpen(false);
-                    setRegistrationMessage('As inscrições para este evento foram encerradas.');
-                } else {
-                    setIsRegistrationOpen(true);
-                    setRegistrationMessage('');
-                }
-            } else {
-                setIsRegistrationOpen(false);
-                setRegistrationMessage(error || 'Não foi possível verificar o período de inscrições.');
-            }
-            setIsLoadingConfig(false);
-        };
-
-        checkRegistrationPeriod();
-    }, []);
 
     const validateEmail = (email: string) => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -282,8 +246,6 @@ const CoupleForm: React.FC = () => {
         );
     }
     
-    const isFormDisabled = !isRegistrationOpen || isLoadingConfig;
-
     return (
         <>
         {isModalOpen && (
@@ -294,24 +256,11 @@ const CoupleForm: React.FC = () => {
             />
         )}
         <form onSubmit={handleReview} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
-            {isLoadingConfig && (
-                <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4" role="status">
-                    <p className="font-bold">Aguarde</p>
-                    <p>Verificando período de inscrições...</p>
-                </div>
-            )}
-            {!isLoadingConfig && !isRegistrationOpen && (
-                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
-                    <p className="font-bold">Atenção</p>
-                    <p>{registrationMessage}</p>
-                </div>
-            )}
-
             {/* General Section */}
             <div className="border-b border-gray-200 pb-6">
                 <h2 className="text-2xl font-bold text-gray-800">Informações do Casal</h2>
                 <div className="mt-4">
-                    <InputField id="email" label="E-mail Principal do Casal" type="email" value={formData.email} onChange={handleChange} required error={emailError} disabled={isFormDisabled} />
+                    <InputField id="email" label="E-mail Principal do Casal" type="email" value={formData.email} onChange={handleChange} required error={emailError} />
                 </div>
             </div>
 
@@ -322,20 +271,20 @@ const CoupleForm: React.FC = () => {
                     <h2 className="text-2xl font-bold text-gray-800">Dados do Noivo</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField id="nomeCompletoEle" label="Nome Completo" value={formData.nomeCompletoEle} onChange={handleChange} required disabled={isFormDisabled} />
-                    <InputField id="dataNascimentoEle" label="Data de Nascimento" type="date" value={formData.dataNascimentoEle} onChange={handleChange} required disabled={isFormDisabled} />
-                    <InputField id="foneWatsAppEle" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEle} onChange={handleChange} placeholder="(00) 00000-0000" required disabled={isFormDisabled} />
-                    <InputField id="cepEle" label="CEP" value={formData.cepEle} onChange={handleChange} onBlur={() => handleCepBlur('Ele')} required disabled={isFormDisabled} />
-                    <InputField id="enderecoEle" label="Endereço" value={formData.enderecoEle} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="complementoEle" label="Complemento" value={formData.complementoEle} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="bairroEle" label="Bairro" value={formData.bairroEle} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="cidadeEle" label="Cidade" value={formData.cidadeEle} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="ufEle" label="UF" value={formData.ufEle} onChange={handleChange} disabled={isFormDisabled} />
+                    <InputField id="nomeCompletoEle" label="Nome Completo" value={formData.nomeCompletoEle} onChange={handleChange} required />
+                    <InputField id="dataNascimentoEle" label="Data de Nascimento" type="date" value={formData.dataNascimentoEle} onChange={handleChange} required />
+                    <InputField id="foneWatsAppEle" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEle} onChange={handleChange} placeholder="(00) 00000-0000" required />
+                    <InputField id="cepEle" label="CEP" value={formData.cepEle} onChange={handleChange} onBlur={() => handleCepBlur('Ele')} required />
+                    <InputField id="enderecoEle" label="Endereço" value={formData.enderecoEle} onChange={handleChange} />
+                    <InputField id="complementoEle" label="Complemento" value={formData.complementoEle} onChange={handleChange} />
+                    <InputField id="bairroEle" label="Bairro" value={formData.bairroEle} onChange={handleChange} />
+                    <InputField id="cidadeEle" label="Cidade" value={formData.cidadeEle} onChange={handleChange} />
+                    <InputField id="ufEle" label="UF" value={formData.ufEle} onChange={handleChange} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <SelectField id="participaGrupoEle" label="Participa de algum grupo da paróquia?" value={formData.participaGrupoEle} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} disabled={isFormDisabled} />
+                    <SelectField id="participaGrupoEle" label="Participa de algum grupo da paróquia?" value={formData.participaGrupoEle} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
                     {formData.participaGrupoEle === 'sim' && (
-                        <InputField id="qualGrupoEle" label="Se sim, qual?" value={formData.qualGrupoEle} onChange={handleChange} required disabled={isFormDisabled} />
+                        <InputField id="qualGrupoEle" label="Se sim, qual?" value={formData.qualGrupoEle} onChange={handleChange} required />
                     )}
                 </div>
             </div>
@@ -351,20 +300,20 @@ const CoupleForm: React.FC = () => {
                     <h2 className="text-2xl font-bold text-gray-800">Dados da Noiva</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField id="nomeCompletoEla" label="Nome Completo" value={formData.nomeCompletoEla} onChange={handleChange} required disabled={isFormDisabled} />
-                    <InputField id="dataNascimentoEla" label="Data de Nascimento" type="date" value={formData.dataNascimentoEla} onChange={handleChange} required disabled={isFormDisabled} />
-                    <InputField id="foneWatsAppEla" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEla} onChange={handleChange} placeholder="(00) 00000-0000" required disabled={isFormDisabled} />
-                    <InputField id="cepEla" label="CEP" value={formData.cepEla} onChange={handleChange} onBlur={() => handleCepBlur('Ela')} required disabled={isFormDisabled} />
-                    <InputField id="enderecoEla" label="Endereço" value={formData.enderecoEla} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="complementoEla" label="Complemento" value={formData.complementoEla} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="bairroEla" label="Bairro" value={formData.bairroEla} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="cidadeEla" label="Cidade" value={formData.cidadeEla} onChange={handleChange} disabled={isFormDisabled} />
-                    <InputField id="ufEla" label="UF" value={formData.ufEla} onChange={handleChange} disabled={isFormDisabled} />
+                    <InputField id="nomeCompletoEla" label="Nome Completo" value={formData.nomeCompletoEla} onChange={handleChange} required />
+                    <InputField id="dataNascimentoEla" label="Data de Nascimento" type="date" value={formData.dataNascimentoEla} onChange={handleChange} required />
+                    <InputField id="foneWatsAppEla" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEla} onChange={handleChange} placeholder="(00) 00000-0000" required />
+                    <InputField id="cepEla" label="CEP" value={formData.cepEla} onChange={handleChange} onBlur={() => handleCepBlur('Ela')} required />
+                    <InputField id="enderecoEla" label="Endereço" value={formData.enderecoEla} onChange={handleChange} />
+                    <InputField id="complementoEla" label="Complemento" value={formData.complementoEla} onChange={handleChange} />
+                    <InputField id="bairroEla" label="Bairro" value={formData.bairroEla} onChange={handleChange} />
+                    <InputField id="cidadeEla" label="Cidade" value={formData.cidadeEla} onChange={handleChange} />
+                    <InputField id="ufEla" label="UF" value={formData.ufEla} onChange={handleChange} />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <SelectField id="participaGrupoEla" label="Participa de algum grupo da paróquia?" value={formData.participaGrupoEla} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} disabled={isFormDisabled} />
+                    <SelectField id="participaGrupoEla" label="Participa de algum grupo da paróquia?" value={formData.participaGrupoEla} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
                     {formData.participaGrupoEla === 'sim' && (
-                        <InputField id="qualGrupoEla" label="Se sim, qual?" value={formData.qualGrupoEla} onChange={handleChange} required disabled={isFormDisabled} />
+                        <InputField id="qualGrupoEla" label="Se sim, qual?" value={formData.qualGrupoEla} onChange={handleChange} required />
                     )}
                 </div>
             </div>
@@ -379,7 +328,7 @@ const CoupleForm: React.FC = () => {
                 )}
                 <button
                     type="submit"
-                    disabled={loading || isFormDisabled}
+                    disabled={loading}
                     className="w-full bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition duration-300"
                 >
                     {loading ? 'Enviando...' : 'Revisar e Finalizar Inscrição'}

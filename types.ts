@@ -29,4 +29,16 @@ export interface CoupleData {
 export interface ConfigData {
   datainicio: string | null;
   datafim: string | null;
+  paroquia: string | null;
+  cep: string | null;
+  endereco: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  diocese: string | null;
+  logo_diocese: string | null;
+  paroco: string | null;
+  logo_paroquia: string | null;
+  coordenador_pastoral: string | null;
+  logo_pastoral: string | null;
 }
