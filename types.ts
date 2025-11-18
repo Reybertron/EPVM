@@ -25,3 +25,8 @@ export interface CoupleData {
   participaGrupoEla: string; // 'sim' or 'nao'
   qualGrupoEla: string;
 }
+
+export interface ConfigData {
+  datainicio: string | null;
+  datafim: string | null;
+}
