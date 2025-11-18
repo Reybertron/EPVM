@@ -69,8 +69,19 @@ export const saveCoupleData = async (data: CoupleData): Promise<{ success: boole
   try {
     const snakeCaseData: { [key: string]: any } = {};
     for (const key in data) {
-        const snakeKey = camelToSnakeCase(key);
-        snakeCaseData[snakeKey] = (data as any)[key];
+        // Special handling for fields with non-standard snake_case names
+        if (key === 'bairroEle') {
+            snakeCaseData['bairroele'] = (data as any)[key];
+        } else if (key === 'bairroEla') {
+            snakeCaseData['bairroela'] = (data as any)[key];
+        } else if (key === 'cepEle') {
+            snakeCaseData['cepele'] = (data as any)[key];
+        } else if (key === 'cepEla') {
+            snakeCaseData['cepela'] = (data as any)[key];
+        } else {
+            const snakeKey = camelToSnakeCase(key);
+            snakeCaseData[snakeKey] = (data as any)[key];
+        }
     }
 
     const { error } = await client
