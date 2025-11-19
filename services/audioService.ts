@@ -1,19 +1,24 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-// Utilizando a variável de ambiente conforme diretrizes.
-// Certifique-se de que a chave API está configurada no ambiente.
 const GEMINI_API_KEY = process.env.API_KEY;
 
 export const speakText = async (text: string) => {
-  if (!GEMINI_API_KEY) {
-    console.warn("Gemini API Key não encontrada. Usando fallback do navegador.");
+  const playBrowserVoice = () => {
+    console.log("Usando voz do navegador (fallback)...");
     if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
         window.speechSynthesis.speak(utterance);
+    } else {
+        console.warn("Navegador não suporta síntese de fala.");
     }
+  };
+
+  // Verifica se a chave é válida (não undefined ou a string "undefined")
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === 'undefined') {
+    console.warn("Gemini API Key não configurada. Usando fallback.");
+    playBrowserVoice();
     return;
   }
 
@@ -36,10 +41,14 @@ export const speakText = async (text: string) => {
     const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     
     if (base64Audio) {
-        // Definir sampleRate compatível com o modelo (24kHz é comum para Gemini TTS)
         const sampleRate = 24000; 
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate });
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioContext = new AudioContextClass({ sampleRate });
         
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+
         const pcmBytes = decode(base64Audio);
         const audioBuffer = await decodeAudioData(pcmBytes, audioContext, sampleRate, 1);
         
@@ -47,19 +56,16 @@ export const speakText = async (text: string) => {
         source.buffer = audioBuffer;
         source.connect(audioContext.destination);
         source.start(0);
+    } else {
+        console.warn("API não retornou áudio. Usando fallback.");
+        playBrowserVoice();
     }
   } catch (error) {
-    console.error("Erro ao gerar áudio com Gemini:", error);
-    // Fallback para a voz do navegador em caso de erro
-    if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'pt-BR';
-        window.speechSynthesis.speak(utterance);
-    }
+    console.error("Erro Gemini TTS:", error);
+    playBrowserVoice();
   }
 };
 
-// Converte Base64 para Uint8Array
 function decode(base64: string) {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -70,15 +76,13 @@ function decode(base64: string) {
   return bytes;
 }
 
-// Decodifica PCM raw (Int16) para AudioBuffer
 async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
-  // O Gemini retorna PCM 16-bit Little Endian.
-  // Criamos um Int16Array a partir do buffer de bytes.
+  // Gemini retorna PCM 16-bit Little Endian
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
@@ -86,7 +90,6 @@ async function decodeAudioData(
   for (let channel = 0; channel < numChannels; channel++) {
     const channelData = buffer.getChannelData(channel);
     for (let i = 0; i < frameCount; i++) {
-      // Normaliza de Int16 (-32768 a 32767) para Float32 (-1.0 a 1.0)
       channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
     }
   }

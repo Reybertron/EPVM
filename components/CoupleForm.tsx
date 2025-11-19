@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import type { CoupleData } from '../types';
 import InputField from './InputField';
 import SelectField from './SelectField';
@@ -10,15 +10,12 @@ import { speakText } from '../services/audioService';
 
 declare const jspdf: any;
 
-// --- FILE GENERATION LOGIC (Simulada para brevidade, mantendo funcionalidade existente) ---
 const generatePdf = (data: CoupleData) => {
-  const { jsPDF } = jspdf;
+  const { jsPDF } = (window as any).jspdf;
   const doc = new jsPDF();
   
-  // Configurações de fonte
   doc.setFont("helvetica");
   
-  // Título
   doc.setFontSize(18);
   doc.text('Ficha de Inscrição - EPVM', 105, 20, { align: 'center' });
   doc.setFontSize(12);
@@ -27,61 +24,61 @@ const generatePdf = (data: CoupleData) => {
   let y = 40;
   const lineHeight = 7;
   const leftMargin = 15;
+  const valueOffset = 55; // Posição fixa para os valores para alinhar verticalmente
 
-  // Função auxiliar para adicionar linhas
   const addLine = (label: string, value: string) => {
       doc.setFont("helvetica", "bold");
       doc.text(`${label}:`, leftMargin, y);
       doc.setFont("helvetica", "normal");
-      // Ajusta posição do valor baseado no tamanho do label (aproximado)
-      doc.text(value || '-', leftMargin + (doc.getStringUnitWidth(label) * 4.5) + 2, y);
-      y += lineHeight;
+      // Ajusta o texto se for muito longo
+      const splitValue = doc.splitTextToSize(value || '-', 130); 
+      doc.text(splitValue, leftMargin + valueOffset, y);
+      y += (lineHeight * splitValue.length);
   };
 
   const addSectionTitle = (title: string) => {
       y += 5;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(14);
-      doc.setFillColor(230, 230, 230); // Cinza claro
+      doc.setFillColor(230, 230, 230);
       doc.rect(leftMargin - 2, y - 6, 180, 8, 'F');
       doc.text(title, leftMargin, y);
       doc.setFontSize(12);
       y += 10;
   };
 
-  // Dados do Noivo
   addSectionTitle('Dados do Noivo');
   addLine('Nome', data.nomeCompletoEle);
   addLine('Nascimento', data.dataNascimentoEle.split('-').reverse().join('/'));
   addLine('Celular', data.foneWatsAppEle);
   addLine('Endereço', `${data.enderecoEle}, ${data.bairroEle}`);
   addLine('Cidade/UF', `${data.cidadeEle}/${data.ufEle}`);
+  
   y += 2;
   doc.setFont("helvetica", "bold");
   doc.text('Sacramentos:', leftMargin, y);
-  y += lineHeight;
   doc.setFont("helvetica", "normal");
-  doc.text(`Batismo: ${data.batismoEle === 'sim' ? 'Sim' : 'Não'} | Eucaristia: ${data.eucaristiaEle === 'sim' ? 'Sim' : 'Não'} | Crisma: ${data.crismaEle === 'sim' ? 'Sim' : 'Não'}`, leftMargin + 5, y);
-  y += lineHeight * 2;
+  const sacEle = `Batismo: ${data.batismoEle === 'sim' ? 'Sim' : 'Não'}  |  Eucaristia: ${data.eucaristiaEle === 'sim' ? 'Sim' : 'Não'}  |  Crisma: ${data.crismaEle === 'sim' ? 'Sim' : 'Não'}`;
+  doc.text(sacEle, leftMargin + 35, y);
+  y += lineHeight * 1.5;
 
-  // Dados da Noiva
   addSectionTitle('Dados da Noiva');
   addLine('Nome', data.nomeCompletoEla);
   addLine('Nascimento', data.dataNascimentoEla.split('-').reverse().join('/'));
   addLine('Celular', data.foneWatsAppEla);
   addLine('Endereço', `${data.enderecoEla}, ${data.bairroEla}`);
   addLine('Cidade/UF', `${data.cidadeEla}/${data.ufEla}`);
+  
   y += 2;
   doc.setFont("helvetica", "bold");
   doc.text('Sacramentos:', leftMargin, y);
-  y += lineHeight;
   doc.setFont("helvetica", "normal");
-  doc.text(`Batismo: ${data.batismoEla === 'sim' ? 'Sim' : 'Não'} | Eucaristia: ${data.eucaristiaEla === 'sim' ? 'Sim' : 'Não'} | Crisma: ${data.crismaEla === 'sim' ? 'Sim' : 'Não'}`, leftMargin + 5, y);
+  const sacEla = `Batismo: ${data.batismoEla === 'sim' ? 'Sim' : 'Não'}  |  Eucaristia: ${data.eucaristiaEla === 'sim' ? 'Sim' : 'Não'}  |  Crisma: ${data.crismaEla === 'sim' ? 'Sim' : 'Não'}`;
+  doc.text(sacEla, leftMargin + 35, y);
 
-  // Rodapé
   y += 20;
   doc.setFontSize(10);
-  doc.text('__________________________________________', 105, y, { align: 'center' });
+  doc.line(60, y, 150, y); // Linha para assinatura
   y += 5;
   doc.text('Assinatura do Casal (Confirmação)', 105, y, { align: 'center' });
 
@@ -105,14 +102,12 @@ const CoupleForm: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    // Estado para armazenar nomes e exibir na tela de sucesso após limpar o formulário
     const [submittedNames, setSubmittedNames] = useState<{ ele: string; ela: string } | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         let processedValue = value;
 
-        // Máscara de Telefone
         if (name.includes('foneWatsApp')) {
             const digits = value.replace(/\D/g, '');
             processedValue = digits.length <= 10 
@@ -120,7 +115,6 @@ const CoupleForm: React.FC = () => {
                 : digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15);
         }
 
-        // Máscara de CEP (99999-999)
         if (name === 'cepEle' || name === 'cepEla') {
             const digits = value.replace(/\D/g, '');
             processedValue = digits.replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9);
@@ -147,7 +141,6 @@ const CoupleForm: React.FC = () => {
         setIsModalOpen(false);
         setLoading(true);
         
-        // Salva os nomes antes de enviar e limpar
         const names = { ele: formData.nomeCompletoEle, ela: formData.nomeCompletoEla };
         
         const result = await saveCoupleData(formData);
@@ -157,21 +150,16 @@ const CoupleForm: React.FC = () => {
             setSubmittedNames(names);
             setSuccess(true);
             setFormData(initialFormData);
+            
+            // Texto completo para o áudio
+            const messageText = `Parabéns ${names.ele} e ${names.ela}! Sua inscrição foi realizada com sucesso. Vocês receberão um e-mail de acompanhamento. Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.`;
+            
+            // Pequeno delay para garantir que o DOM esteja pronto se necessário, mas o áudio é disparado pela ação
+            setTimeout(() => speakText(messageText), 200);
         } else {
             setError(result.error || 'Erro ao salvar.');
         }
     };
-
-    useEffect(() => {
-        if (success && submittedNames) {
-            // Usando setTimeout para garantir que a UI renderizou antes de iniciar o áudio
-            const timer = setTimeout(() => {
-                const messageText = `Parabéns ${submittedNames.ele} e ${submittedNames.ela}! Sua inscrição foi realizada com sucesso. Vocês receberão um e-mail de acompanhamento. Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.`;
-                speakText(messageText);
-            }, 500);
-            return () => clearTimeout(timer);
-        }
-    }, [success, submittedNames]);
 
     if (success && submittedNames) {
         return (
@@ -190,8 +178,7 @@ const CoupleForm: React.FC = () => {
                 </div>
                 
                 <div className="flex justify-center gap-4">
-                    {/* Recriamos o objeto data com os nomes preservados apenas para o PDF */}
-                    <button onClick={() => generatePdf({...initialFormData, nomeCompletoEle: submittedNames.ele, nomeCompletoEla: submittedNames.ela})} className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Baixar PDF</button>
+                    <button onClick={() => generatePdf({...initialFormData, nomeCompletoEle: submittedNames.ele, nomeCompletoEla: submittedNames.ela, ...formData})} className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Baixar PDF</button>
                     <button onClick={() => setSuccess(false)} className="text-indigo-600 hover:text-indigo-800 font-semibold">Nova Inscrição</button>
                 </div>
             </div>

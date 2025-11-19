@@ -34,7 +34,7 @@ const App: React.FC = () => {
                 setMessage(`As inscrições abrirão em ${startDate.toLocaleDateString('pt-BR')}.`);
             } else if (today > endDate) {
                 setStatus('closed');
-                setMessage('As inscrições para este EPVM foram encerradas. Entre em contato com a secretaria de nossa paróquia ou pelo fone (73) 981423690 - Neuda.');
+                setMessage('As inscrições para este EPVM foram encerradas. Entre em contato com a secretaria de nossa paróquia ou com Cleildo e Mirian  Coordenadores do Pré Matrimonio da Pastoral Familiar WatsApp  (73)8133-8213 ');
             } else {
                 setStatus('open');
             }
@@ -48,7 +48,8 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if ((status === 'closed' || status === 'error') && message) {
-            speakText(message);
+            // Pequeno delay para permitir renderização
+            setTimeout(() => speakText(message), 1000);
         }
     }, [status, message]);
 
@@ -56,7 +57,7 @@ const App: React.FC = () => {
         if (status === 'loading') return <div className="text-center p-8">Carregando...</div>;
         if (status === 'open') return <CoupleForm />;
         return (
-            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-6 rounded text-center">
+            <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-6 rounded text-center shadow-md">
                 <p className="text-lg italic font-bold">{message}</p>
             </div>
         );
@@ -64,12 +65,16 @@ const App: React.FC = () => {
 
     return (
         <div className="container mx-auto p-4 sm:p-6">
-            <header className="mb-8 flex justify-between items-center max-w-4xl mx-auto">
-                 {appConfig?.logo_pastoral && <img src={appConfig.logo_pastoral} className="h-16 w-16 object-contain" alt="Pastoral" />}
-                 <div className="h-24 w-24 rounded-full bg-indigo-50 flex items-center justify-center border-4 border-white shadow overflow-hidden">
+            <header className="mb-8 flex justify-between items-center max-w-4xl mx-auto gap-4">
+                 <div className="w-20 flex justify-center">
+                    {appConfig?.logo_pastoral && <img src={appConfig.logo_pastoral} className="h-16 w-16 object-contain" alt="Pastoral" />}
+                 </div>
+                 <div className="h-24 w-24 rounded-full bg-indigo-50 flex items-center justify-center border-4 border-white shadow overflow-hidden flex-shrink-0">
                     {appConfig?.logo_paroquia ? <img src={appConfig.logo_paroquia} className="h-full w-full object-cover" alt="Paróquia" /> : <span className="text-2xl">✝️</span>}
                  </div>
-                 {appConfig?.logo_diocese && <img src={appConfig.logo_diocese} className="h-16 w-16 object-contain" alt="Diocese" />}
+                 <div className="w-20 flex justify-center">
+                    {appConfig?.logo_diocese && <img src={appConfig.logo_diocese} className="h-16 w-16 object-contain" alt="Diocese" />}
+                 </div>
             </header>
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">{appConfig?.paroquia || 'EPVM'}</h1>
@@ -77,7 +82,7 @@ const App: React.FC = () => {
             </div>
             <main>{renderContent()}</main>
             <footer className="text-center mt-8 text-sm text-gray-500">
-                <button onClick={() => setIsPasswordModalOpen(true)} className="fixed bottom-4 right-4 p-3 bg-white rounded-full shadow hover:bg-gray-100">⚙️</button>
+                <button onClick={() => setIsPasswordModalOpen(true)} className="fixed bottom-4 right-4 p-3 bg-white rounded-full shadow hover:bg-gray-100 text-gray-500">⚙️</button>
             </footer>
             {isPasswordModalOpen && <PasswordModal onSuccess={() => { setIsPasswordModalOpen(false); setIsSettingsModalOpen(true); }} onClose={() => setIsPasswordModalOpen(false)} />}
             {isSettingsModalOpen && <SettingsModal onClose={() => { setIsSettingsModalOpen(false); loadAppConfig(); }} />}
