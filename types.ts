@@ -12,6 +12,11 @@ export interface CoupleData {
   ufEle: string;
   participaGrupoEle: string; // 'sim' or 'nao'
   qualGrupoEle: string;
+  // Sacramentos Ele
+  batismoEle: string; // 'sim' or 'nao'
+  eucaristiaEle: string; // 'sim' or 'nao'
+  crismaEle: string; // 'sim' or 'nao'
+
   // Bride's data
   nomeCompletoEla: string;
   dataNascimentoEla: string;
@@ -24,6 +29,10 @@ export interface CoupleData {
   ufEla: string;
   participaGrupoEla: string; // 'sim' or 'nao'
   qualGrupoEla: string;
+  // Sacramentos Ela
+  batismoEla: string; // 'sim' or 'nao'
+  eucaristiaEla: string; // 'sim' or 'nao'
+  crismaEla: string; // 'sim' or 'nao'
 }
 
 export interface ConfigData {
