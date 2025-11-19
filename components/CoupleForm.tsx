@@ -14,11 +14,78 @@ declare const jspdf: any;
 const generatePdf = (data: CoupleData) => {
   const { jsPDF } = jspdf;
   const doc = new jsPDF();
-  doc.text('Inscrição EPVM - ' + data.nomeCompletoEle + ' e ' + data.nomeCompletoEla, 10, 10);
-  doc.save(`Inscricao_${data.nomeCompletoEle}.pdf`);
-};
-const generateCsv = (data: CoupleData) => {
-    console.log("Gerando CSV para", data);
+  
+  // Configurações de fonte
+  doc.setFont("helvetica");
+  
+  // Título
+  doc.setFontSize(18);
+  doc.text('Ficha de Inscrição - EPVM', 105, 20, { align: 'center' });
+  doc.setFontSize(12);
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 105, 28, { align: 'center' });
+
+  let y = 40;
+  const lineHeight = 7;
+  const leftMargin = 15;
+
+  // Função auxiliar para adicionar linhas
+  const addLine = (label: string, value: string) => {
+      doc.setFont("helvetica", "bold");
+      doc.text(`${label}:`, leftMargin, y);
+      doc.setFont("helvetica", "normal");
+      // Ajusta posição do valor baseado no tamanho do label (aproximado)
+      doc.text(value || '-', leftMargin + (doc.getStringUnitWidth(label) * 4.5) + 2, y);
+      y += lineHeight;
+  };
+
+  const addSectionTitle = (title: string) => {
+      y += 5;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setFillColor(230, 230, 230); // Cinza claro
+      doc.rect(leftMargin - 2, y - 6, 180, 8, 'F');
+      doc.text(title, leftMargin, y);
+      doc.setFontSize(12);
+      y += 10;
+  };
+
+  // Dados do Noivo
+  addSectionTitle('Dados do Noivo');
+  addLine('Nome', data.nomeCompletoEle);
+  addLine('Nascimento', data.dataNascimentoEle.split('-').reverse().join('/'));
+  addLine('Celular', data.foneWatsAppEle);
+  addLine('Endereço', `${data.enderecoEle}, ${data.bairroEle}`);
+  addLine('Cidade/UF', `${data.cidadeEle}/${data.ufEle}`);
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.text('Sacramentos:', leftMargin, y);
+  y += lineHeight;
+  doc.setFont("helvetica", "normal");
+  doc.text(`Batismo: ${data.batismoEle === 'sim' ? 'Sim' : 'Não'} | Eucaristia: ${data.eucaristiaEle === 'sim' ? 'Sim' : 'Não'} | Crisma: ${data.crismaEle === 'sim' ? 'Sim' : 'Não'}`, leftMargin + 5, y);
+  y += lineHeight * 2;
+
+  // Dados da Noiva
+  addSectionTitle('Dados da Noiva');
+  addLine('Nome', data.nomeCompletoEla);
+  addLine('Nascimento', data.dataNascimentoEla.split('-').reverse().join('/'));
+  addLine('Celular', data.foneWatsAppEla);
+  addLine('Endereço', `${data.enderecoEla}, ${data.bairroEla}`);
+  addLine('Cidade/UF', `${data.cidadeEla}/${data.ufEla}`);
+  y += 2;
+  doc.setFont("helvetica", "bold");
+  doc.text('Sacramentos:', leftMargin, y);
+  y += lineHeight;
+  doc.setFont("helvetica", "normal");
+  doc.text(`Batismo: ${data.batismoEla === 'sim' ? 'Sim' : 'Não'} | Eucaristia: ${data.eucaristiaEla === 'sim' ? 'Sim' : 'Não'} | Crisma: ${data.crismaEla === 'sim' ? 'Sim' : 'Não'}`, leftMargin + 5, y);
+
+  // Rodapé
+  y += 20;
+  doc.setFontSize(10);
+  doc.text('__________________________________________', 105, y, { align: 'center' });
+  y += 5;
+  doc.text('Assinatura do Casal (Confirmação)', 105, y, { align: 'center' });
+
+  doc.save(`Inscricao_EPVM_${data.nomeCompletoEle.split(' ')[0]}_e_${data.nomeCompletoEla.split(' ')[0]}.pdf`);
 };
 
 const initialFormData: CoupleData = {
@@ -38,6 +105,8 @@ const CoupleForm: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // Estado para armazenar nomes e exibir na tela de sucesso após limpar o formulário
+    const [submittedNames, setSubmittedNames] = useState<{ ele: string; ela: string } | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -77,10 +146,15 @@ const CoupleForm: React.FC = () => {
     const handleConfirmAndSubmit = async () => {
         setIsModalOpen(false);
         setLoading(true);
+        
+        // Salva os nomes antes de enviar e limpar
+        const names = { ele: formData.nomeCompletoEle, ela: formData.nomeCompletoEla };
+        
         const result = await saveCoupleData(formData);
         setLoading(false);
 
         if (result.success) {
+            setSubmittedNames(names);
             setSuccess(true);
             setFormData(initialFormData);
         } else {
@@ -89,22 +163,35 @@ const CoupleForm: React.FC = () => {
     };
 
     useEffect(() => {
-        if (success) {
-            const messageText = "Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.";
-            speakText(messageText);
+        if (success && submittedNames) {
+            // Usando setTimeout para garantir que a UI renderizou antes de iniciar o áudio
+            const timer = setTimeout(() => {
+                const messageText = `Parabéns ${submittedNames.ele} e ${submittedNames.ela}! Sua inscrição foi realizada com sucesso. Vocês receberão um e-mail de acompanhamento. Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.`;
+                speakText(messageText);
+            }, 500);
+            return () => clearTimeout(timer);
         }
-    }, [success]);
+    }, [success, submittedNames]);
 
-    if (success) {
+    if (success && submittedNames) {
         return (
             <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-                <h2 className="text-2xl font-bold text-green-600 mb-4">Inscrição Realizada!</h2>
+                <h2 className="text-2xl font-bold text-green-600 mb-2">Inscrição Realizada!</h2>
+                <p className="text-lg text-gray-700 mb-6">
+                    Parabéns, <span className="font-semibold">{submittedNames.ele}</span> e <span className="font-semibold">{submittedNames.ela}</span>!
+                </p>
+                <p className="text-gray-600 mb-6">
+                    Seus dados foram enviados com sucesso. Em breve vocês receberão um e-mail de acompanhamento com mais detalhes.
+                </p>
+
                 <div className="bg-indigo-50 border-l-4 border-indigo-500 p-6 mb-8 mx-auto max-w-2xl rounded-r-lg shadow-sm">
                     <p className="text-base font-bold text-gray-800">Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00</p>
                     <p className="text-base font-bold text-gray-800 mt-2">Não se preocupe você tem ate o final das nossas reuniões para contribuir.</p>
                 </div>
+                
                 <div className="flex justify-center gap-4">
-                    <button onClick={() => generatePdf(formData)} className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Baixar PDF</button>
+                    {/* Recriamos o objeto data com os nomes preservados apenas para o PDF */}
+                    <button onClick={() => generatePdf({...initialFormData, nomeCompletoEle: submittedNames.ele, nomeCompletoEla: submittedNames.ela})} className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Baixar PDF</button>
                     <button onClick={() => setSuccess(false)} className="text-indigo-600 hover:text-indigo-800 font-semibold">Nova Inscrição</button>
                 </div>
             </div>
