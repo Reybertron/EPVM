@@ -39,6 +39,10 @@ const parseSupabaseError = (error: any): string => {
     if (typeof error === 'string') {
         return error;
     }
+    // Captura erros padrão do JavaScript (Error objects)
+    if (error instanceof Error) {
+        return error.message;
+    }
     if (typeof error === 'object' && error !== null) {
         if (error.message) {
             let errorMessage = `Erro: ${error.message}`;
@@ -56,9 +60,6 @@ const parseSupabaseError = (error: any): string => {
     return "Ocorreu um erro inesperado. Verifique o console do navegador.";
 };
 
-
-const camelToSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-
 export const saveCoupleData = async (data: CoupleData): Promise<{ success: boolean; error?: string, rawError?: any }> => {
   const client = getSupabaseClient();
   if (!client) {
@@ -68,20 +69,12 @@ export const saveCoupleData = async (data: CoupleData): Promise<{ success: boole
   
   try {
     const snakeCaseData: { [key: string]: any } = {};
+    
+    // Converte todas as chaves para minúsculo para corresponder às colunas do banco
+    // Ex: nomeCompletoEle -> nomecompletoele
+    // Ex: cepEla -> cepela
     for (const key in data) {
-        // Special handling for fields with non-standard snake_case names
-        if (key === 'bairroEle') {
-            snakeCaseData['bairroele'] = (data as any)[key];
-        } else if (key === 'bairroEla') {
-            snakeCaseData['bairroela'] = (data as any)[key];
-        } else if (key === 'cepEle') {
-            snakeCaseData['cepele'] = (data as any)[key];
-        } else if (key === 'cepEla') {
-            snakeCaseData['cepela'] = (data as any)[key];
-        } else {
-            const snakeKey = camelToSnakeCase(key);
-            snakeCaseData[snakeKey] = (data as any)[key];
-        }
+        snakeCaseData[key.toLowerCase()] = (data as any)[key];
     }
 
     const { error } = await client

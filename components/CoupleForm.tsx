@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { CoupleData } from '../types';
 import InputField from './InputField';
 import SelectField from './SelectField';
@@ -217,11 +217,37 @@ const CoupleForm: React.FC = () => {
         }
     };
 
+    // Efeito para falar a mensagem quando a inscrição for bem-sucedida
+    useEffect(() => {
+        if (success) {
+            const messageText = "Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.";
+            
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Cancela falas anteriores
+                const utterance = new SpeechSynthesisUtterance(messageText);
+                utterance.lang = 'pt-BR';
+                utterance.rate = 1.0; // Velocidade normal
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+    }, [success]);
+
     if (success && submittedData) {
         return (
             <div className="bg-white p-8 rounded-lg shadow-lg text-center">
                 <h2 className="text-2xl font-bold text-green-600 mb-4">Inscrição Realizada com Sucesso!</h2>
                 <p className="text-gray-700 mb-6">Obrigado por se inscrever. Os seus dados foram enviados para a Pastoral Familiar.</p>
+                
+                {/* Bloco de Mensagem Importante com estilo solicitado */}
+                <div className="bg-indigo-50 border-l-4 border-indigo-500 p-6 mb-8 mx-auto max-w-2xl rounded-r-lg shadow-sm">
+                    <p className="text-base font-bold text-gray-800">
+                        Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00
+                    </p>
+                    <p className="text-base font-bold text-gray-800 mt-2">
+                        Não se preocupe você tem ate o final das nossas reuniões para contribuir.
+                    </p>
+                </div>
+
                 <div className="flex flex-col sm:flex-row justify-center gap-4">
                     <button
                         onClick={() => generatePdf(submittedData)}
