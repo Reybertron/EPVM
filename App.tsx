@@ -34,7 +34,7 @@ const App: React.FC = () => {
                 setMessage(`As inscrições abrirão em ${startDate.toLocaleDateString('pt-BR')}.`);
             } else if (today > endDate) {
                 setStatus('closed');
-                setMessage('As inscrições para este EPVM foram encerradas. Entre em contato com a secretaria de nossa paróquia ou com Cleildo e Mirian  Coordenadores do Pré Matrimonio da Pastoral Familiar WatsApp  (73)8133-8213 ');
+                setMessage('As inscrições para este EPVM foram encerradas. Entre em contato com a secretaria de nossa paróquia ou com Cleildo e Mirian Coordenadores do Pré Matrimonio da Pastoral Familiar WatsApp (73)8133-8213');
             } else {
                 setStatus('open');
             }
@@ -65,15 +65,20 @@ const App: React.FC = () => {
 
     return (
         <div className="container mx-auto p-4 sm:p-6">
-            <header className="mb-8 flex justify-between items-center max-w-4xl mx-auto gap-4">
-                 <div className="w-20 flex justify-center">
-                    {appConfig?.logo_pastoral && <img src={appConfig.logo_pastoral} className="h-16 w-16 object-contain" alt="Pastoral" />}
+            <header className="mb-8 flex justify-center items-center max-w-4xl mx-auto gap-6 sm:gap-12">
+                 {/* Esquerda: Logo Paróquia */}
+                 <div className="w-24 flex justify-center items-center">
+                    {appConfig?.logo_paroquia && <img src={appConfig.logo_paroquia} className="h-20 w-auto object-contain" alt="Paróquia" />}
                  </div>
-                 <div className="h-24 w-24 rounded-full bg-indigo-50 flex items-center justify-center border-4 border-white shadow overflow-hidden flex-shrink-0">
-                    {appConfig?.logo_paroquia ? <img src={appConfig.logo_paroquia} className="h-full w-full object-cover" alt="Paróquia" /> : <span className="text-2xl">✝️</span>}
+
+                 {/* Centro: Logo Pastoral (Destaque) */}
+                 <div className="h-28 w-28 rounded-full bg-indigo-50 flex items-center justify-center border-4 border-white shadow-lg overflow-hidden flex-shrink-0">
+                    {appConfig?.logo_pastoral ? <img src={appConfig.logo_pastoral} className="h-full w-full object-cover" alt="Pastoral" /> : <span className="text-3xl">✝️</span>}
                  </div>
-                 <div className="w-20 flex justify-center">
-                    {appConfig?.logo_diocese && <img src={appConfig.logo_diocese} className="h-16 w-16 object-contain" alt="Diocese" />}
+
+                 {/* Direita: Logo Diocese */}
+                 <div className="w-24 flex justify-center items-center">
+                    {appConfig?.logo_diocese && <img src={appConfig.logo_diocese} className="h-20 w-auto object-contain" alt="Diocese" />}
                  </div>
             </header>
             <div className="text-center mb-8">
