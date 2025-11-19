@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { CoupleData } from '../types';
 import InputField from './InputField';
 import SelectField from './SelectField';
@@ -154,8 +154,8 @@ const CoupleForm: React.FC = () => {
             // Texto completo para o áudio
             const messageText = `Parabéns ${names.ele} e ${names.ela}! Sua inscrição foi realizada com sucesso. Vocês receberão um e-mail de acompanhamento. Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.`;
             
-            // Pequeno delay para garantir que o DOM esteja pronto se necessário, mas o áudio é disparado pela ação
-            setTimeout(() => speakText(messageText), 200);
+            // Reproduz o áudio diretamente em resposta ao clique do usuário para evitar bloqueio de autoplay
+            speakText(messageText);
         } else {
             setError(result.error || 'Erro ao salvar.');
         }
@@ -163,23 +163,59 @@ const CoupleForm: React.FC = () => {
 
     if (success && submittedNames) {
         return (
-            <div className="bg-white p-8 rounded-lg shadow-lg text-center">
-                <h2 className="text-2xl font-bold text-green-600 mb-2">Inscrição Realizada!</h2>
-                <p className="text-lg text-gray-700 mb-6">
-                    Parabéns, <span className="font-semibold">{submittedNames.ele}</span> e <span className="font-semibold">{submittedNames.ela}</span>!
-                </p>
-                <p className="text-gray-600 mb-6">
-                    Seus dados foram enviados com sucesso. Em breve vocês receberão um e-mail de acompanhamento com mais detalhes.
-                </p>
+            <div className="flex justify-center items-start pt-4 px-4">
+                <div className="relative max-w-2xl w-full bg-white/80 backdrop-blur-md border border-white/40 shadow-2xl rounded-2xl p-8 overflow-hidden animate-fade-in-up">
+                    
+                    {/* Elementos decorativos de fundo - Tema Sucesso (Verde) */}
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-teal-500"></div>
+                    <div className="absolute -top-10 -right-10 w-24 h-24 bg-green-200 rounded-full mix-blend-multiply filter blur-xl opacity-50"></div>
+                    
+                    <div className="relative z-10 flex flex-col items-center text-center">
+                        {/* Ícone de Sucesso */}
+                        <div className="mb-4 p-3 bg-green-50 rounded-full border border-green-100 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
 
-                <div className="bg-indigo-50 border-l-4 border-indigo-500 p-6 mb-8 mx-auto max-w-2xl rounded-r-lg shadow-sm">
-                    <p className="text-base font-bold text-gray-800">Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00</p>
-                    <p className="text-base font-bold text-gray-800 mt-2">Não se preocupe você tem ate o final das nossas reuniões para contribuir.</p>
-                </div>
-                
-                <div className="flex justify-center gap-4">
-                    <button onClick={() => generatePdf({...initialFormData, nomeCompletoEle: submittedNames.ele, nomeCompletoEla: submittedNames.ela, ...formData})} className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700">Baixar PDF</button>
-                    <button onClick={() => setSuccess(false)} className="text-indigo-600 hover:text-indigo-800 font-semibold">Nova Inscrição</button>
+                        {/* Título */}
+                        <h2 className="text-3xl font-black text-gray-800 mb-3 tracking-tight uppercase">
+                            INSCRIÇÃO REALIZADA
+                        </h2>
+
+                        {/* Corpo da Mensagem */}
+                        <div className="text-lg text-gray-700 font-medium leading-relaxed space-y-4 mb-6">
+                            <p>
+                                Parabéns, <span className="font-bold text-green-700">{submittedNames.ele}</span> e <span className="font-bold text-green-700">{submittedNames.ela}</span>!
+                            </p>
+                            <p className="text-base text-gray-600">
+                                Seus dados foram enviados com sucesso. Em breve vocês receberão um e-mail de acompanhamento com mais detalhes.
+                            </p>
+                        </div>
+
+                        {/* Card de Contribuição */}
+                        <div className="w-full bg-white/60 border-l-4 border-green-500 p-5 mb-8 rounded-r-lg shadow-sm text-left backdrop-blur-sm">
+                            <p className="text-base font-bold text-gray-800">Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00</p>
+                            <p className="text-base font-bold text-gray-800 mt-2 italic">Não se preocupe, você tem até o final das nossas reuniões para contribuir.</p>
+                        </div>
+                        
+                        {/* Botões de Ação */}
+                        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                            <button 
+                                onClick={() => generatePdf({...initialFormData, nomeCompletoEle: submittedNames.ele, nomeCompletoEla: submittedNames.ela, ...formData})} 
+                                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full shadow-md transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                Baixar PDF
+                            </button>
+                            <button 
+                                onClick={() => setSuccess(false)} 
+                                className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-full shadow-md transition-all duration-300 transform hover:scale-105"
+                            >
+                                Nova Inscrição
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
