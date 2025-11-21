@@ -24,13 +24,12 @@ const generatePdf = (data: CoupleData) => {
   let y = 40;
   const lineHeight = 7;
   const leftMargin = 15;
-  const valueOffset = 55; // Posição fixa para os valores para alinhar verticalmente
+  const valueOffset = 55; 
 
   const addLine = (label: string, value: string) => {
       doc.setFont("helvetica", "bold");
       doc.text(`${label}:`, leftMargin, y);
       doc.setFont("helvetica", "normal");
-      // Ajusta o texto se for muito longo
       const splitValue = doc.splitTextToSize(value || '-', 130); 
       doc.text(splitValue, leftMargin + valueOffset, y);
       y += (lineHeight * splitValue.length);
@@ -78,7 +77,7 @@ const generatePdf = (data: CoupleData) => {
 
   y += 20;
   doc.setFontSize(10);
-  doc.line(60, y, 150, y); // Linha para assinatura
+  doc.line(60, y, 150, y); 
   y += 5;
   doc.text('Assinatura do Casal (Confirmação)', 105, y, { align: 'center' });
 
@@ -93,8 +92,23 @@ const initialFormData: CoupleData = {
   batismoEla: 'nao', eucaristiaEla: 'nao', crismaEla: 'nao',
 };
 
-const PersonIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>);
-const HeartIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-pink-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" /></svg>);
+// Ícones atualizados
+const PersonIcon = ({ className }: { className?: string }) => (
+  <div className={`p-2 rounded-xl bg-slate-100 ${className}`}>
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+    </svg>
+  </div>
+);
+const HeartIcon = () => (
+  <div className="flex justify-center my-8">
+    <div className="bg-white p-3 rounded-full shadow-lg border border-pink-100">
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-rose-500 animate-pulse" viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+      </svg>
+    </div>
+  </div>
+);
 
 const CoupleForm: React.FC = () => {
     const [formData, setFormData] = useState<CoupleData>(initialFormData);
@@ -151,10 +165,8 @@ const CoupleForm: React.FC = () => {
             setSuccess(true);
             setFormData(initialFormData);
             
-            // Texto completo para o áudio
             const messageText = `Parabéns ${names.ele} e ${names.ela}! Sua inscrição foi realizada com sucesso. Vocês receberão um e-mail de acompanhamento. Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00. Não se preocupe, você tem até o final das nossas reuniões para contribuir.`;
             
-            // Reproduz o áudio diretamente em resposta ao clique do usuário para evitar bloqueio de autoplay
             speakText(messageText);
         } else {
             setError(result.error || 'Erro ao salvar.');
@@ -164,53 +176,59 @@ const CoupleForm: React.FC = () => {
     if (success && submittedNames) {
         return (
             <div className="flex justify-center items-start pt-4 px-4">
-                <div className="relative max-w-2xl w-full bg-white/80 backdrop-blur-md border border-white/40 shadow-2xl rounded-2xl p-8 overflow-hidden animate-fade-in-up">
+                <div className="relative max-w-2xl w-full glass-panel rounded-2xl p-8 overflow-hidden animate-fade-in-up">
                     
-                    {/* Elementos decorativos de fundo - Tema Sucesso (Verde) */}
-                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-teal-500"></div>
-                    <div className="absolute -top-10 -right-10 w-24 h-24 bg-green-200 rounded-full mix-blend-multiply filter blur-xl opacity-50"></div>
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+                    <div className="absolute -top-20 -right-20 w-40 h-40 bg-emerald-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60"></div>
                     
                     <div className="relative z-10 flex flex-col items-center text-center">
-                        {/* Ícone de Sucesso */}
-                        <div className="mb-4 p-3 bg-green-50 rounded-full border border-green-100 shadow-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <div className="mb-6 p-4 bg-emerald-50/80 backdrop-blur-sm rounded-full border border-emerald-100 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
 
-                        {/* Título */}
-                        <h2 className="text-3xl font-black text-gray-800 mb-3 tracking-tight uppercase">
+                        <h2 className="text-2xl sm:text-3xl font-black text-slate-800 mb-4 tracking-tight">
                             INSCRIÇÃO REALIZADA
                         </h2>
 
-                        {/* Corpo da Mensagem */}
-                        <div className="text-lg text-gray-700 font-medium leading-relaxed space-y-4 mb-6">
+                        <div className="text-lg text-slate-600 font-medium leading-relaxed space-y-4 mb-8">
                             <p>
-                                Parabéns, <span className="font-bold text-green-700">{submittedNames.ele}</span> e <span className="font-bold text-green-700">{submittedNames.ela}</span>!
+                                Parabéns, <span className="font-bold text-emerald-700">{submittedNames.ele}</span> e <span className="font-bold text-emerald-700">{submittedNames.ela}</span>!
                             </p>
-                            <p className="text-base text-gray-600">
-                                Seus dados foram enviados com sucesso. Em breve vocês receberão um e-mail de acompanhamento com mais detalhes.
+                            <p className="text-base text-slate-500">
+                                Seus dados foram enviados com sucesso. Em breve vocês receberão um e-mail de acompanhamento.
                             </p>
                         </div>
 
-                        {/* Card de Contribuição */}
-                        <div className="w-full bg-white/60 border-l-4 border-green-500 p-5 mb-8 rounded-r-lg shadow-sm text-left backdrop-blur-sm">
-                            <p className="text-base font-bold text-gray-800">Em virtude de alguns custos, pedimos uma colaboração no valor de R$ 80,00</p>
-                            <p className="text-base font-bold text-gray-800 mt-2 italic">Não se preocupe, você tem até o final das nossas reuniões para contribuir.</p>
+                        {/* Card de Contribuição Moderno */}
+                        <div className="w-full bg-white/60 border border-white/50 rounded-xl p-6 mb-8 shadow-sm text-left backdrop-blur-md relative overflow-hidden">
+                             <div className="absolute left-0 top-0 h-full w-1 bg-emerald-500"></div>
+                             <div className="flex gap-4">
+                                <div className="text-emerald-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p className="text-base font-bold text-slate-800 mb-1">Colaboração de R$ 80,00</p>
+                                    <p className="text-sm text-slate-600">Em virtude de alguns custos, pedimos esta colaboração.</p>
+                                    <p className="text-sm font-medium text-slate-800 mt-2 italic">“Não se preocupe, você tem até o final das nossas reuniões para contribuir.”</p>
+                                </div>
+                             </div>
                         </div>
                         
-                        {/* Botões de Ação */}
                         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
                             <button 
                                 onClick={() => generatePdf({...initialFormData, nomeCompletoEle: submittedNames.ele, nomeCompletoEla: submittedNames.ela, ...formData})} 
-                                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full shadow-md transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+                                className="px-8 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-600/20 transition-all duration-300 transform hover:translate-y-[-2px] flex items-center justify-center gap-2"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                Baixar PDF
+                                Baixar Ficha (PDF)
                             </button>
                             <button 
                                 onClick={() => setSuccess(false)} 
-                                className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white font-semibold rounded-full shadow-md transition-all duration-300 transform hover:scale-105"
+                                className="px-8 py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl shadow-lg shadow-slate-800/20 transition-all duration-300 transform hover:translate-y-[-2px]"
                             >
                                 Nova Inscrição
                             </button>
@@ -224,55 +242,103 @@ const CoupleForm: React.FC = () => {
     return (
         <>
         {isModalOpen && <ConfirmationModal data={formData} onConfirm={handleConfirmAndSubmit} onClose={() => setIsModalOpen(false)} />}
-        <form onSubmit={(e) => { e.preventDefault(); setIsModalOpen(true); }} className="bg-white p-8 rounded-lg shadow-lg space-y-8">
-            <div className="border-b pb-6"><h2 className="text-2xl font-bold text-gray-800">Contato</h2><InputField id="email" label="E-mail" type="email" value={formData.email} onChange={handleChange} required /></div>
+        <form onSubmit={(e) => { e.preventDefault(); setIsModalOpen(true); }} className="glass-panel p-8 md:p-10 rounded-2xl shadow-xl space-y-8 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+
+            <div className="pb-6 border-b border-gray-100">
+                <h2 className="text-2xl font-black text-slate-800 mb-4">Contato Principal</h2>
+                <InputField id="email" label="E-mail" type="email" value={formData.email} onChange={handleChange} required placeholder="exemplo@email.com" />
+            </div>
 
             {/* NOIVO */}
             <div className="space-y-6">
-                <div className="flex items-center gap-4"><PersonIcon /><h2 className="text-2xl font-bold text-gray-800">Dados do Noivo</h2></div>
+                <div className="flex items-center gap-4 mb-4">
+                    <PersonIcon className="text-indigo-600 bg-indigo-50" />
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-800">Dados do Noivo</h2>
+                        <p className="text-sm text-slate-500">Informações pessoais</p>
+                    </div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField id="nomeCompletoEle" label="Nome Completo" value={formData.nomeCompletoEle} onChange={handleChange} required />
+                    <InputField id="nomeCompletoEle" label="Nome Completo" value={formData.nomeCompletoEle} onChange={handleChange} required placeholder="Nome do noivo" />
                     <InputField id="dataNascimentoEle" label="Data de Nascimento" type="date" value={formData.dataNascimentoEle} onChange={handleChange} required />
                     <InputField id="foneWatsAppEle" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEle} onChange={handleChange} placeholder="(00) 00000-0000" required />
                     <InputField id="cepEle" label="CEP" value={formData.cepEle} onChange={handleChange} onBlur={() => handleCepBlur('Ele')} required placeholder="99999-999" />
-                    <InputField id="enderecoEle" label="Endereço" value={formData.enderecoEle} onChange={handleChange} />
-                    <InputField id="complementoEle" label="Complemento" value={formData.complementoEle} onChange={handleChange} />
+                    
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2">
+                             <InputField id="enderecoEle" label="Endereço" value={formData.enderecoEle} onChange={handleChange} placeholder="Rua, Avenida..." />
+                        </div>
+                        <InputField id="complementoEle" label="Complemento" value={formData.complementoEle} onChange={handleChange} placeholder="Apto, Casa..." />
+                    </div>
+                    
                     <InputField id="bairroEle" label="Bairro" value={formData.bairroEle} onChange={handleChange} />
-                    <InputField id="cidadeEle" label="Cidade" value={formData.cidadeEle} onChange={handleChange} />
-                    <InputField id="ufEle" label="UF" value={formData.ufEle} onChange={handleChange} />
+                    <div className="grid grid-cols-3 gap-4">
+                         <div className="col-span-2">
+                            <InputField id="cidadeEle" label="Cidade" value={formData.cidadeEle} onChange={handleChange} />
+                         </div>
+                         <InputField id="ufEle" label="UF" value={formData.ufEle} onChange={handleChange} />
+                    </div>
                 </div>
-                <div className="border-t pt-4 mt-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Sacramentos (Noivo)</h3>
+
+                <div className="bg-slate-50/50 p-6 rounded-xl border border-slate-100 mt-6">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                        Sacramentos (Noivo)
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <RadioGroupField id="batismoEle" label="Batismo?" value={formData.batismoEle} onChange={handleChange} tooltipText="Indica se o noivo tem o sacramento do Batismo." required />
                         <RadioGroupField id="eucaristiaEle" label="Eucaristia?" value={formData.eucaristiaEle} onChange={handleChange} tooltipText="Indica se o noivo tem o sacramento da Eucaristia." required />
                         <RadioGroupField id="crismaEle" label="Crisma?" value={formData.crismaEle} onChange={handleChange} tooltipText="Indica se o noivo tem o sacramento da Crisma." required />
                     </div>
                 </div>
+                
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                     <SelectField id="participaGrupoEle" label="Participa de grupo?" value={formData.participaGrupoEle} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
                     {formData.participaGrupoEle === 'sim' && <InputField id="qualGrupoEle" label="Qual?" value={formData.qualGrupoEle} onChange={handleChange} required />}
                 </div>
             </div>
             
-            <div className="flex justify-center"><HeartIcon /></div>
+            <HeartIcon />
 
             {/* NOIVA */}
             <div className="space-y-6">
-                <div className="flex items-center gap-4"><PersonIcon /><h2 className="text-2xl font-bold text-gray-800">Dados da Noiva</h2></div>
+                <div className="flex items-center gap-4 mb-4">
+                    <PersonIcon className="text-pink-600 bg-pink-50" />
+                    <div>
+                        <h2 className="text-2xl font-black text-slate-800">Dados da Noiva</h2>
+                        <p className="text-sm text-slate-500">Informações pessoais</p>
+                    </div>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <InputField id="nomeCompletoEla" label="Nome Completo" value={formData.nomeCompletoEla} onChange={handleChange} required />
+                    <InputField id="nomeCompletoEla" label="Nome Completo" value={formData.nomeCompletoEla} onChange={handleChange} required placeholder="Nome da noiva" />
                     <InputField id="dataNascimentoEla" label="Data de Nascimento" type="date" value={formData.dataNascimentoEla} onChange={handleChange} required />
                     <InputField id="foneWatsAppEla" label="Fone/WhatsApp" type="tel" value={formData.foneWatsAppEla} onChange={handleChange} placeholder="(00) 00000-0000" required />
                     <InputField id="cepEla" label="CEP" value={formData.cepEla} onChange={handleChange} onBlur={() => handleCepBlur('Ela')} required placeholder="99999-999" />
-                    <InputField id="enderecoEla" label="Endereço" value={formData.enderecoEla} onChange={handleChange} />
-                    <InputField id="complementoEla" label="Complemento" value={formData.complementoEla} onChange={handleChange} />
+                    
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2">
+                             <InputField id="enderecoEla" label="Endereço" value={formData.enderecoEla} onChange={handleChange} placeholder="Rua, Avenida..." />
+                        </div>
+                        <InputField id="complementoEla" label="Complemento" value={formData.complementoEla} onChange={handleChange} placeholder="Apto, Casa..." />
+                    </div>
+
                     <InputField id="bairroEla" label="Bairro" value={formData.bairroEla} onChange={handleChange} />
-                    <InputField id="cidadeEla" label="Cidade" value={formData.cidadeEla} onChange={handleChange} />
-                    <InputField id="ufEla" label="UF" value={formData.ufEla} onChange={handleChange} />
+                    <div className="grid grid-cols-3 gap-4">
+                         <div className="col-span-2">
+                            <InputField id="cidadeEla" label="Cidade" value={formData.cidadeEla} onChange={handleChange} />
+                         </div>
+                         <InputField id="ufEla" label="UF" value={formData.ufEla} onChange={handleChange} />
+                    </div>
                 </div>
-                 <div className="border-t pt-4 mt-4">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Sacramentos (Noiva)</h3>
+
+                 <div className="bg-slate-50/50 p-6 rounded-xl border border-slate-100 mt-6">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-pink-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                        Sacramentos (Noiva)
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <RadioGroupField id="batismoEla" label="Batismo?" value={formData.batismoEla} onChange={handleChange} tooltipText="Indica se a noiva tem o sacramento do Batismo." required />
                         <RadioGroupField id="eucaristiaEla" label="Eucaristia?" value={formData.eucaristiaEla} onChange={handleChange} tooltipText="Indica se a noiva tem o sacramento da Eucaristia." required />
@@ -285,10 +351,19 @@ const CoupleForm: React.FC = () => {
                 </div>
             </div>
 
-            <div className="pt-6 border-t">
-                {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
-                <button type="submit" disabled={loading} className="w-full bg-indigo-600 text-white font-bold py-3 rounded hover:bg-indigo-700 disabled:bg-gray-400">
-                    {loading ? 'Enviando...' : 'Revisar e Finalizar'}
+            <div className="pt-8 border-t border-slate-200">
+                {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 flex items-center gap-3"><svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>{error}</div>}
+                <button 
+                    type="submit" 
+                    disabled={loading} 
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 transition-all duration-300 transform hover:translate-y-[-2px] disabled:bg-slate-300 disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none"
+                >
+                    {loading ? (
+                        <span className="flex items-center justify-center gap-2">
+                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            Processando Inscrição...
+                        </span>
+                    ) : 'Revisar e Finalizar Inscrição'}
                 </button>
             </div>
         </form>

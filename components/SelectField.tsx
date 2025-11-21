@@ -7,7 +7,6 @@ interface SelectFieldProps {
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
   required?: boolean;
   options: { value: string; label: string }[];
-  // FIX: Add disabled prop to component props to allow form disabling.
   disabled?: boolean;
 }
 
@@ -21,26 +20,31 @@ const SelectField: React.FC<SelectFieldProps> = ({
   disabled = false,
 }) => {
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+    <div className="w-full">
+      <label htmlFor={id} className="block text-sm font-semibold text-slate-600 mb-2 ml-1">
         {label}
-        {required && <span className="text-red-500">*</span>}
+        {required && <span className="text-rose-500 ml-1">*</span>}
       </label>
-      <select
-        id={id}
-        name={id}
-        value={value}
-        onChange={onChange}
-        required={required}
-        disabled={disabled}
-        className="w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+            id={id}
+            name={id}
+            value={value}
+            onChange={onChange}
+            required={required}
+            disabled={disabled}
+            className="glass-input w-full px-4 py-3 rounded-xl text-slate-800 border-slate-200 bg-white appearance-none focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200 disabled:bg-slate-50"
+        >
+            {options.map((option) => (
+            <option key={option.value} value={option.value}>
+                {option.label}
+            </option>
+            ))}
+        </select>
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+        </div>
+      </div>
     </div>
   );
 };
