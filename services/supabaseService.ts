@@ -65,6 +65,57 @@ export const saveCoupleData = async (data: CoupleData): Promise<{ success: boole
   }
 };
 
+export const fetchAllCouples = async (): Promise<{ success: boolean; data?: CoupleData[]; error?: string }> => {
+  const client = getSupabaseClient();
+  if (!client) return { success: false, error: "Banco de dados não conectado." };
+
+  try {
+    const { data, error } = await client.from('inscricoes_epvm').select('*');
+    if (error) throw error;
+
+    // Mapeia os dados do banco (lowercase/snake_case) de volta para o formato da aplicação (camelCase)
+    const mappedData: CoupleData[] = data.map((row: any) => ({
+         email: row.email,
+         // ELE
+         nomeCompletoEle: row.nomecompletoele,
+         dataNascimentoEle: row.datanascimentoele,
+         foneWatsAppEle: row.fonewatsappele,
+         cepEle: row.cepele,
+         enderecoEle: row.enderecoele,
+         complementoEle: row.complementoele,
+         bairroEle: row.bairroele,
+         cidadeEle: row.cidadeele,
+         ufEle: row.ufele,
+         paroquiaEle: row.paroquiaele,
+         participaGrupoEle: row.participagrupoele ? 'sim' : 'nao',
+         qualGrupoEle: row.qualgrupoele,
+         batismoEle: row.batismoele ? 'sim' : 'nao',
+         eucaristiaEle: row.eucaristiaele ? 'sim' : 'nao',
+         crismaEle: row.crismaele ? 'sim' : 'nao',
+         // ELA
+         nomeCompletoEla: row.nomecompletoela,
+         dataNascimentoEla: row.datanascimentoela,
+         foneWatsAppEla: row.fonewatsappela,
+         cepEla: row.cepela,
+         enderecoEla: row.enderecoela,
+         complementoEla: row.complementoela,
+         bairroEla: row.bairroela,
+         cidadeEla: row.cidadeela,
+         ufEla: row.ufela,
+         paroquiaEla: row.paroquiaela,
+         participaGrupoEla: row.participagrupoela ? 'sim' : 'nao',
+         qualGrupoEla: row.qualgrupoela,
+         batismoEla: row.batismoela ? 'sim' : 'nao',
+         eucaristiaEla: row.eucaristiaela ? 'sim' : 'nao',
+         crismaEla: row.crismaela ? 'sim' : 'nao',
+    }));
+
+    return { success: true, data: mappedData };
+  } catch (error: any) {
+    return { success: false, error: parseSupabaseError(error) };
+  }
+};
+
 export const fetchConfig = async (): Promise<{ success: boolean; data?: ConfigData; error?: string }> => {
   const client = getSupabaseClient();
   if (!client) return { success: false, error: "Banco de dados não conectado." };

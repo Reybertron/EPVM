@@ -5,6 +5,7 @@ import { fetchConfig, saveConfig, uploadLogoImage } from '../services/supabaseSe
 import { fetchAddressByCep } from '../services/viaCepService';
 import InputField from './InputField';
 import ImageUploadField from './ImageUploadField';
+import CouplesManagementModal from './CouplesManagementModal';
 
 interface SettingsModalProps {
     onClose: () => void;
@@ -35,6 +36,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
+    const [isManagementOpen, setIsManagementOpen] = useState(false);
     const [uploading, setUploading] = useState<{ [key: string]: boolean }>({
         logo_paroquia: false,
         logo_diocese: false,
@@ -108,7 +110,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         for (const field of imageFields) {
             const url = config[field];
             if (url && !url.match(/\.(jpeg|jpg|gif|png|svg)$|^(data:image)/i) && !url.includes('supabase.co')) {
-                 // Permitir URLs do Supabase mesmo que não terminem com extensão, ou Data URIs, ou extensões comuns
+                 // Permitir URLs do Supabase
             }
         }
 
@@ -127,12 +129,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setSaving(false);
     };
 
+    // Se a gestão estiver aberta, renderiza APENAS o modal de gestão (substituindo este)
+    if (isManagementOpen) {
+        return <CouplesManagementModal onClose={() => setIsManagementOpen(false)} />;
+    }
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="p-6 border-b sticky top-0 bg-white z-10">
-                    <h2 id="settings-modal-title" className="text-2xl font-extrabold text-gray-900">Configurações Gerais</h2>
-                    <p className="text-sm text-gray-600 mt-1">Gerencie as informações da paróquia e do evento.</p>
+                <div className="p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-start">
+                    <div>
+                        <h2 id="settings-modal-title" className="text-2xl font-extrabold text-gray-900">Configurações Gerais</h2>
+                        <p className="text-sm text-gray-600 mt-1">Gerencie as informações da paróquia e do evento.</p>
+                    </div>
                 </div>
 
                 <div className="p-6 space-y-6 overflow-y-auto">
@@ -205,18 +214,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_diocese')}
                                     />
                                     <ImageUploadField
-                                        id="logo_pastoral"
-                                        label="Logo da Pastoral"
-                                        value={config.logo_pastoral}
-                                        isUploading={uploading.logo_pastoral}
-                                        onFileSelect={(file) => handleImageUpload(file, 'logo_pastoral')}
-                                    />
-                                    <ImageUploadField
                                         id="logo_pix"
                                         label="QR Code ou Logo do PIX"
                                         value={config.logo_pix}
                                         isUploading={uploading.logo_pix}
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_pix')}
+                                    />
+                                    <ImageUploadField
+                                        id="logo_pastoral"
+                                        label="Logo da Pastoral"
+                                        value={config.logo_pastoral}
+                                        isUploading={uploading.logo_pastoral}
+                                        onFileSelect={(file) => handleImageUpload(file, 'logo_pastoral')}
                                     />
                                 </div>
                             </fieldset>
@@ -226,7 +235,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                     {success && <p className="mt-4 text-sm text-green-600" role="status">{success}</p>}
                 </div>
 
-                <div className="p-4 bg-gray-50 border-t sticky bottom-0 flex flex-col sm:flex-row-reverse gap-3">
+                <div className="p-4 bg-gray-50 border-t sticky bottom-0 flex flex-col sm:flex-row justify-end gap-3">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsManagementOpen(true)} 
+                        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 rounded-md border border-transparent shadow-sm px-6 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        Gestão de Noivos
+                    </button>
                     <button type="button" onClick={handleSave} disabled={saving || loading} className="w-full sm:w-auto inline-flex justify-center rounded-md border border-transparent shadow-sm px-6 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300 disabled:cursor-wait">
                         {saving ? 'Salvando...' : 'Salvar Alterações'}
                     </button>
