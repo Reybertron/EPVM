@@ -43,6 +43,9 @@ export const saveCoupleData = async (data: CoupleData): Promise<{ success: boole
     const snakeCaseData: { [key: string]: any } = {};
     
     for (const key in data) {
+        // Ignora createdAt no salvamento, pois é gerado pelo banco
+        if (key === 'createdAt') continue;
+
         const value = (data as any)[key];
         // Converte chaves para minúsculo (ex: cepEle -> cepele)
         const dbKey = key.toLowerCase();
@@ -70,12 +73,14 @@ export const fetchAllCouples = async (): Promise<{ success: boolean; data?: Coup
   if (!client) return { success: false, error: "Banco de dados não conectado." };
 
   try {
-    const { data, error } = await client.from('inscricoes_epvm').select('*');
+    // Ordena por created_at decrescente (mais recentes primeiro)
+    const { data, error } = await client.from('inscricoes_epvm').select('*').order('created_at', { ascending: false });
     if (error) throw error;
 
     // Mapeia os dados do banco (lowercase/snake_case) de volta para o formato da aplicação (camelCase)
     const mappedData: CoupleData[] = data.map((row: any) => ({
          email: row.email,
+         createdAt: row.created_at, // Mapeia a data de criação
          // ELE
          nomeCompletoEle: row.nomecompletoele,
          dataNascimentoEle: row.datanascimentoele,

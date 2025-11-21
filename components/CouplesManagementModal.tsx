@@ -14,6 +14,7 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
     const [filteredCouples, setFilteredCouples] = useState<CoupleData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchDate, setSearchDate] = useState(''); // Estado para o filtro de data
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -33,12 +34,30 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
 
     useEffect(() => {
         const lowerTerm = searchTerm.toLowerCase();
-        const filtered = couples.filter(c => 
-            c.nomeCompletoEle.toLowerCase().includes(lowerTerm) || 
-            c.nomeCompletoEla.toLowerCase().includes(lowerTerm)
-        );
+        
+        const filtered = couples.filter(c => {
+            // Filtro por Nome
+            const matchesName = c.nomeCompletoEle.toLowerCase().includes(lowerTerm) || 
+                                c.nomeCompletoEla.toLowerCase().includes(lowerTerm);
+            
+            // Filtro por Data (Truncate - Compara apenas a parte YYYY-MM-DD)
+            let matchesDate = true;
+            if (searchDate) {
+                // c.createdAt vem do banco como ISO string (ex: 2023-10-25T14:30:00)
+                // searchDate vem do input como YYYY-MM-DD
+                if (c.createdAt) {
+                    const datePart = c.createdAt.split('T')[0]; // Pega só a data
+                    matchesDate = datePart === searchDate;
+                } else {
+                    matchesDate = false;
+                }
+            }
+
+            return matchesName && matchesDate;
+        });
+
         setFilteredCouples(filtered);
-    }, [searchTerm, couples]);
+    }, [searchTerm, searchDate, couples]);
 
     const generateReport = () => {
         const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
@@ -48,7 +67,7 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
         doc.setFontSize(10);
         doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 26);
 
-        const tableColumn = ["Noivo", "Noiva", "Cel. Noivo", "Cel. Noiva", "Paróquia Noivo", "Paróquia Noiva", "Sacramentos (Ele)", "Sacramentos (Ela)"];
+        const tableColumn = ["Data", "Noivo", "Noiva", "Cel. Noivo", "Cel. Noiva", "Paróquia", "Sacramentos (Ele/Ela)"];
         const tableRows: any[] = [];
 
         filteredCouples.forEach(couple => {
@@ -64,15 +83,18 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                 couple.crismaEla === 'sim' ? 'C' : ''
             ].filter(Boolean).join('/');
 
+            const createdDate = couple.createdAt 
+                ? new Date(couple.createdAt).toLocaleDateString('pt-BR') 
+                : '-';
+
             const rowData = [
+                createdDate,
                 couple.nomeCompletoEle,
                 couple.nomeCompletoEla,
                 couple.foneWatsAppEle,
                 couple.foneWatsAppEla,
-                couple.paroquiaEle || '-',
-                couple.paroquiaEla || '-',
-                sacEle || '-',
-                sacEla || '-'
+                `${couple.paroquiaEle || '-'}\n${couple.paroquiaEla || '-'}`,
+                `Ele: ${sacEle || '-'}\nEla: ${sacEla || '-'}`
             ];
             tableRows.push(rowData);
         });
@@ -113,9 +135,10 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                     </div>
                 </div>
 
-                {/* Search */}
-                <div className="p-4 border-b bg-white">
-                    <div className="relative">
+                {/* Filters */}
+                <div className="p-4 border-b bg-white grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Search Input */}
+                    <div className="md:col-span-2 relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
                         </div>
@@ -125,6 +148,20 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                             className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Date Filter */}
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                        <input 
+                            type="date" 
+                            className="pl-10 w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-gray-600"
+                            value={searchDate}
+                            onChange={(e) => setSearchDate(e.target.value)}
+                            title="Filtrar por data de inscrição"
                         />
                     </div>
                 </div>
@@ -144,6 +181,7 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inscrito em</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Noivo</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Noiva</th>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paróquia</th>
@@ -153,6 +191,9 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {filteredCouples.map((couple, idx) => (
                                         <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500">
+                                                {couple.createdAt ? new Date(couple.createdAt).toLocaleDateString('pt-BR') : '-'}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="text-sm font-medium text-gray-900">{couple.nomeCompletoEle}</div>
                                                 <div className="text-xs text-gray-500">Nasc: {couple.dataNascimentoEle?.split('-').reverse().join('/')}</div>

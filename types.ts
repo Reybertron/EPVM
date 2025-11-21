@@ -1,6 +1,7 @@
 
 export interface CoupleData {
   email: string;
+  createdAt?: string; // Data de criação do registro (banco de dados)
   // Groom's data
   nomeCompletoEle: string;
   dataNascimentoEle: string;
