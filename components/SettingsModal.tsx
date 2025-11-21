@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { ConfigData } from '../types';
 import { fetchConfig, saveConfig, uploadLogoImage } from '../services/supabaseService';
@@ -24,6 +25,8 @@ const initialConfigState: ConfigData = {
     logo_paroquia: '',
     coordenador_pastoral: '',
     logo_pastoral: '',
+    codigo_pix: '',
+    logo_pix: '',
 };
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
@@ -36,6 +39,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         logo_paroquia: false,
         logo_diocese: false,
         logo_pastoral: false,
+        logo_pix: false,
     });
 
     useEffect(() => {
@@ -99,6 +103,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setError(null);
         setSuccess(null);
         
+        // Validação simples de URLs de imagem
+        const imageFields: (keyof ConfigData)[] = ['logo_paroquia', 'logo_diocese', 'logo_pastoral', 'logo_pix'];
+        for (const field of imageFields) {
+            const url = config[field];
+            if (url && !url.match(/\.(jpeg|jpg|gif|png|svg)$|^(data:image)/i) && !url.includes('supabase.co')) {
+                 // Permitir URLs do Supabase mesmo que não terminem com extensão, ou Data URIs, ou extensões comuns
+            }
+        }
+
         const dataToSave: Partial<ConfigData> = {
             ...config,
             datainicio: config.datainicio || null,
@@ -165,6 +178,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                 </div>
                             </fieldset>
 
+                            {/* Financeiro */}
+                            <fieldset>
+                                <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Financeiro</legend>
+                                <div className="space-y-4">
+                                     <InputField id="codigo_pix" label="Chave PIX para Inscrição" value={config.codigo_pix || ''} onChange={handleChange} placeholder="Ex: CNPJ, Email, Telefone ou Chave Aleatória" />
+                                </div>
+                            </fieldset>
+
                            {/* Logos */}
                             <fieldset>
                                 <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Identidade Visual</legend>
@@ -189,6 +210,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         value={config.logo_pastoral}
                                         isUploading={uploading.logo_pastoral}
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_pastoral')}
+                                    />
+                                    <ImageUploadField
+                                        id="logo_pix"
+                                        label="QR Code ou Logo do PIX"
+                                        value={config.logo_pix}
+                                        isUploading={uploading.logo_pix}
+                                        onFileSelect={(file) => handleImageUpload(file, 'logo_pix')}
                                     />
                                 </div>
                             </fieldset>

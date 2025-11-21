@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import type { CoupleData } from '../types';
 import InputField from './InputField';
@@ -52,6 +53,7 @@ const generatePdf = (data: CoupleData) => {
   addLine('Celular', data.foneWatsAppEle);
   addLine('Endereço', `${data.enderecoEle}, ${data.bairroEle}`);
   addLine('Cidade/UF', `${data.cidadeEle}/${data.ufEle}`);
+  addLine('Paróquia', data.paroquiaEle);
   
   y += 2;
   doc.setFont("helvetica", "bold");
@@ -67,6 +69,7 @@ const generatePdf = (data: CoupleData) => {
   addLine('Celular', data.foneWatsAppEla);
   addLine('Endereço', `${data.enderecoEla}, ${data.bairroEla}`);
   addLine('Cidade/UF', `${data.cidadeEla}/${data.ufEla}`);
+  addLine('Paróquia', data.paroquiaEla);
   
   y += 2;
   doc.setFont("helvetica", "bold");
@@ -86,9 +89,9 @@ const generatePdf = (data: CoupleData) => {
 
 const initialFormData: CoupleData = {
   email: '',
-  nomeCompletoEle: '', dataNascimentoEle: '', foneWatsAppEle: '', cepEle: '', enderecoEle: '', complementoEle: '', bairroEle: '', cidadeEle: '', ufEle: '', participaGrupoEle: 'nao', qualGrupoEle: '',
+  nomeCompletoEle: '', dataNascimentoEle: '', foneWatsAppEle: '', cepEle: '', enderecoEle: '', complementoEle: '', bairroEle: '', cidadeEle: '', ufEle: '', paroquiaEle: '', participaGrupoEle: 'nao', qualGrupoEle: '',
   batismoEle: 'nao', eucaristiaEle: 'nao', crismaEle: 'nao',
-  nomeCompletoEla: '', dataNascimentoEla: '', foneWatsAppEla: '', cepEla: '', enderecoEla: '', complementoEla: '', bairroEla: '', cidadeEla: '', ufEla: '', participaGrupoEla: 'nao', qualGrupoEla: '',
+  nomeCompletoEla: '', dataNascimentoEla: '', foneWatsAppEla: '', cepEla: '', enderecoEla: '', complementoEla: '', bairroEla: '', cidadeEla: '', ufEla: '', paroquiaEla: '', participaGrupoEla: 'nao', qualGrupoEla: '',
   batismoEla: 'nao', eucaristiaEla: 'nao', crismaEla: 'nao',
 };
 
@@ -282,6 +285,10 @@ const CoupleForm: React.FC = () => {
                     </div>
                 </div>
 
+                <div className="mt-4">
+                     <InputField id="paroquiaEle" label="Paróquia / Igreja que frequenta" value={formData.paroquiaEle} onChange={handleChange} placeholder="Ex: Paróquia São José" />
+                </div>
+
                 <div className="bg-slate-50/50 p-6 rounded-xl border border-slate-100 mt-6">
                     <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
@@ -295,7 +302,7 @@ const CoupleForm: React.FC = () => {
                 </div>
                 
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    <SelectField id="participaGrupoEle" label="Participa de grupo?" value={formData.participaGrupoEle} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
+                    <SelectField id="participaGrupoEle" label="Participa de algum grupo, movimento ou Pastoral?" value={formData.participaGrupoEle} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
                     {formData.participaGrupoEle === 'sim' && <InputField id="qualGrupoEle" label="Qual?" value={formData.qualGrupoEle} onChange={handleChange} required />}
                 </div>
             </div>
@@ -334,6 +341,10 @@ const CoupleForm: React.FC = () => {
                     </div>
                 </div>
 
+                <div className="mt-4">
+                     <InputField id="paroquiaEla" label="Paróquia / Igreja que frequenta" value={formData.paroquiaEla} onChange={handleChange} placeholder="Ex: Paróquia Santa Maria" />
+                </div>
+
                  <div className="bg-slate-50/50 p-6 rounded-xl border border-slate-100 mt-6">
                     <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-pink-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
@@ -346,7 +357,7 @@ const CoupleForm: React.FC = () => {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    <SelectField id="participaGrupoEla" label="Participa de grupo?" value={formData.participaGrupoEla} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
+                    <SelectField id="participaGrupoEla" label="Participa de algum grupo, movimento ou Pastoral?" value={formData.participaGrupoEla} onChange={handleChange} required options={[{value: 'nao', label: 'Não'}, {value: 'sim', label: 'Sim'}]} />
                     {formData.participaGrupoEla === 'sim' && <InputField id="qualGrupoEla" label="Qual?" value={formData.qualGrupoEla} onChange={handleChange} required />}
                 </div>
             </div>

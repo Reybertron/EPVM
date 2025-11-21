@@ -1,3 +1,4 @@
+
 export interface CoupleData {
   email: string;
   // Groom's data
@@ -10,6 +11,7 @@ export interface CoupleData {
   bairroEle: string;
   cidadeEle: string;
   ufEle: string;
+  paroquiaEle: string; // Novo campo
   participaGrupoEle: string; // 'sim' or 'nao'
   qualGrupoEle: string;
   // Sacramentos Ele
@@ -27,6 +29,7 @@ export interface CoupleData {
   bairroEla: string;
   cidadeEla: string;
   ufEla: string;
+  paroquiaEla: string; // Novo campo
   participaGrupoEla: string; // 'sim' or 'nao'
   qualGrupoEla: string;
   // Sacramentos Ela
@@ -50,4 +53,6 @@ export interface ConfigData {
   logo_paroquia: string | null;
   coordenador_pastoral: string | null;
   logo_pastoral: string | null;
+  codigo_pix: string | null;
+  logo_pix: string | null;
 }

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CoupleData } from '../types';
 
@@ -23,6 +24,7 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ data, onConfirm, 
             <DataRow label="Fone" value={data[`foneWatsApp${prefix}`]} />
             <DataRow label="CEP" value={data[`cep${prefix}`]} />
             <DataRow label="Cidade" value={data[`cidade${prefix}`]} />
+            <DataRow label="Paróquia" value={data[`paroquia${prefix}`]} />
             <DataRow label="Sacramentos" value={
                 [
                     data[`batismo${prefix}`] === 'sim' ? 'Batismo' : null,
