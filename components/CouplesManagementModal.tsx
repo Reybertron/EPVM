@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { fetchAllCouples, fetchConfig } from '../services/supabaseService';
 import { CoupleData, ConfigData } from '../types';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import EditCoupleModal from './EditCoupleModal';
 
 interface CouplesManagementModalProps {
     onClose: () => void;
@@ -18,29 +19,34 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
     const [searchDate, setSearchDate] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [generatingPdf, setGeneratingPdf] = useState(false);
+    const [generatingAll, setGeneratingAll] = useState(false);
+    
+    // Estado para edição
+    const [editingCouple, setEditingCouple] = useState<CoupleData | null>(null);
+
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        
+        // Carrega Configurações
+        const configResult = await fetchConfig();
+        if (configResult.data) {
+            setConfig(configResult.data);
+        }
+
+        // Carrega Casais
+        const couplesResult = await fetchAllCouples();
+        if (couplesResult.success && couplesResult.data) {
+            setCouples(couplesResult.data);
+            setFilteredCouples(couplesResult.data);
+        } else {
+            setError(couplesResult.error || 'Erro ao carregar inscritos.');
+        }
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            
-            // Carrega Configurações
-            const configResult = await fetchConfig();
-            if (configResult.data) {
-                setConfig(configResult.data);
-            }
-
-            // Carrega Casais
-            const couplesResult = await fetchAllCouples();
-            if (couplesResult.success && couplesResult.data) {
-                setCouples(couplesResult.data);
-                setFilteredCouples(couplesResult.data);
-            } else {
-                setError(couplesResult.error || 'Erro ao carregar inscritos.');
-            }
-            setLoading(false);
-        };
         loadData();
-    }, []);
+    }, [loadData]);
 
     useEffect(() => {
         const lowerTerm = searchTerm.toLowerCase();
@@ -89,59 +95,45 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
         });
     };
 
-    // Função para buscar a fonte Great Vibes e converter para Base64
-    const addGreatVibesFont = async (doc: jsPDF) => {
-        try {
-            // URL direta para o TTF do Google Fonts (via rawgit ou cdn similar para garantir acesso direto ao arquivo)
-            const fontUrl = 'https://raw.githubusercontent.com/google/fonts/main/ofl/greatvibes/GreatVibes-Regular.ttf';
-            const response = await fetch(fontUrl);
-            const blob = await response.blob();
-            
-            return new Promise<void>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    const base64data = reader.result as string;
-                    // Remove o prefixo data:application/octet-stream;base64, se existir
-                    const base64Content = base64data.split(',')[1];
-                    
-                    doc.addFileToVFS('GreatVibes-Regular.ttf', base64Content);
-                    doc.addFont('GreatVibes-Regular.ttf', 'GreatVibes', 'normal');
-                    resolve();
-                };
-                reader.readAsDataURL(blob);
-            });
-        } catch (error) {
-            console.error("Erro ao carregar fonte GreatVibes:", error);
-            // Não falha o processo, apenas a fonte não será aplicada (fallback para Times)
-        }
+    // Função para carregar fontes personalizadas
+    const addCustomFonts = async (doc: jsPDF) => {
+        const loadFont = async (name: string, url: string) => {
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                return new Promise<void>((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64data = reader.result as string;
+                        const base64Content = base64data.split(',')[1];
+                        doc.addFileToVFS(`${name}.ttf`, base64Content);
+                        doc.addFont(`${name}.ttf`, name, 'normal');
+                        resolve();
+                    };
+                    reader.readAsDataURL(blob);
+                });
+            } catch (error) {
+                console.error(`Erro ao carregar fonte ${name}:`, error);
+            }
+        };
+
+        // Carrega apenas GreatVibes conforme solicitado
+        await loadFont('GreatVibes', 'https://raw.githubusercontent.com/google/fonts/main/ofl/greatvibes/GreatVibes-Regular.ttf');
     };
 
-    const generateCertificate = async (couple: CoupleData) => {
-        if (!config) {
-            alert("Configurações não carregadas. Tente novamente.");
-            return;
-        }
-        setGeneratingPdf(true);
-
-        const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4'
-        });
-
-        // Tenta carregar a fonte cursiva
-        await addGreatVibesFont(doc);
-
+    // Lógica de desenho de uma única página de certificado
+    const drawCertificatePage = (
+        doc: jsPDF, 
+        couple: CoupleData, 
+        images: { layout: string | null, pastoral: string | null, diocese: string | null, paroquia: string | null }
+    ) => {
         const pageWidth = 297;
         const pageHeight = 210;
         const margin = 10;
 
-        // --- VERIFICA SE EXISTE LAYOUT PERSONALIZADO ---
-        const layoutUrl = config.layout_certificado;
-        const layoutImage = await getDataUrl(layoutUrl || '');
-
-        if (layoutImage) {
-            doc.addImage(layoutImage, 'PNG', 0, 0, pageWidth, pageHeight);
+        // Fundo / Bordas
+        if (images.layout) {
+            doc.addImage(images.layout, 'PNG', 0, 0, pageWidth, pageHeight);
         } else {
             // Layout Padrão (Fallback)
             doc.setFillColor(252, 250, 245);
@@ -154,93 +146,84 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
             doc.rect(margin + 2, margin + 2, pageWidth - (margin * 2) - 4, pageHeight - (margin * 2) - 4);
             
             // Logos
-            const logoPastoral = await getDataUrl(config.logo_pastoral || '');
-            const logoDiocese = await getDataUrl(config.logo_diocese || '');
-            if (logoPastoral) doc.addImage(logoPastoral, 'PNG', margin + 15, margin + 15, 30, 30);
-            if (logoDiocese) doc.addImage(logoDiocese, 'PNG', pageWidth - margin - 45, margin + 15, 30, 30);
+            if (images.pastoral) doc.addImage(images.pastoral, 'PNG', margin + 15, margin + 15, 30, 30);
+            if (images.diocese) doc.addImage(images.diocese, 'PNG', pageWidth - margin - 45, margin + 15, 30, 30);
         }
 
         // --- CONTEÚDO DE TEXTO ---
-        
-        // 1. Cabeçalho (Diocese/Paróquia)
+        if (!config) return;
+
+        // Cabeçalho (Diocese/Paróquia)
         doc.setFont("times", "bold");
         doc.setTextColor(30, 58, 138); 
         doc.setFontSize(26); 
-        
         const dioceseText = config.diocese || "Diocese";
         const paroquiaText = config.paroquia ? ` - ${config.paroquia}` : "";
         doc.text(`${dioceseText}${paroquiaText}`, pageWidth / 2, 28, { align: "center" });
 
-        // 2. Título "Certificado de Conclusão"
+        // Título
         doc.setTextColor(202, 138, 4); 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(40); 
-        // Sombra leve
-        doc.setTextColor(180, 110, 0);
+        doc.setTextColor(180, 110, 0); // Sombra
         doc.text("Certificado de Conclusão", (pageWidth / 2) + 0.5, 48.5, { align: "center" });
-        // Texto principal
         doc.setTextColor(202, 138, 4); 
         doc.text("Certificado de Conclusão", pageWidth / 2, 48, { align: "center" });
 
-        // 3. Primeiros Nomes (FONTE GREAT VIBES)
-        doc.setTextColor(40, 40, 40);
-        
-        // Verifica se a fonte foi carregada corretamente, senão usa Times Italic
-        const fontList = doc.getFontList();
-        if (fontList && fontList['GreatVibes']) {
-            doc.setFont("GreatVibes", "normal");
-            doc.setFontSize(70); // Fontes cursivas tendem a ser visualmente menores, aumentei para 70
-        } else {
-            doc.setFont("times", "italic");
-            doc.setFontSize(55);
-        }
-        
+        let yPos = 85; 
+
+        // 1. Primeiros Nomes (GreatVibes - Sublinhado)
         const primeiroNomeEla = couple.nomeCompletoEla.split(' ')[0];
         const primeiroNomeEle = couple.nomeCompletoEle.split(' ')[0];
         const nomesDestaque = `${primeiroNomeEla} & ${primeiroNomeEle}`;
-        
-        const nomesY = 75; 
-        doc.text(nomesDestaque, pageWidth / 2, nomesY, { align: "center" });
-        
+
+        doc.setFont("GreatVibes", "normal");
+        // Tamanho 39 (40% de redução do original 65)
+        doc.setFontSize(39);
+        doc.setTextColor(40, 40, 40);
+        doc.text(nomesDestaque, pageWidth / 2, yPos, { align: "center" });
+
         // Linha Sublinhada
         const textWidth = doc.getTextWidth(nomesDestaque);
-        doc.setLineWidth(1.0);
-        doc.setDrawColor(60, 60, 60); 
-        doc.line((pageWidth / 2) - (textWidth / 2) - 5, nomesY + 3, (pageWidth / 2) + (textWidth / 2) + 5, nomesY + 3);
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(60, 60, 60);
+        doc.line((pageWidth / 2) - (textWidth / 2) - 5, yPos + 3, (pageWidth / 2) + (textWidth / 2) + 5, yPos + 3);
 
-        // Retorna para Times para o resto do texto
+        yPos += 15;
+
+        // 2. "Certificamos que os noivos:"
+        doc.setFont("times", "italic"); 
+        doc.setFontSize(22);
         doc.setTextColor(0, 0, 0);
+        doc.text("Certificamos que os noivos:", pageWidth / 2, yPos, { align: "center" });
+        
+        yPos += 14; 
 
-        // 4. "Certificamos que os noivos:"
-        doc.setFont("times", "italic"); 
-        doc.setFontSize(20); 
-        doc.text("Certificamos que os noivos:", pageWidth / 2, 95, { align: "center" });
-
-        // 5. Nomes Completos
-        doc.setFont("times", "bolditalic"); 
-        doc.setFontSize(28); 
+        // 3. Nomes Completos
+        doc.setFont("times", "bolditalic");
+        doc.setFontSize(26);
         const nomesCompletos = `${couple.nomeCompletoEla} e ${couple.nomeCompletoEle}`;
-        doc.text(nomesCompletos, pageWidth / 2, 110, { align: "center" });
+        const nomesSplit = doc.splitTextToSize(nomesCompletos, 270); 
+        doc.text(nomesSplit, pageWidth / 2, yPos, { align: "center" });
+        
+        yPos += (10 * nomesSplit.length) + 2;
 
-        // 6. Corpo do Texto
-        doc.setFont("times", "italic"); 
-        doc.setFontSize(20); 
+        // 4. Texto Fluido
+        doc.setFont("times", "italic");
+        doc.setFontSize(20);
         
         const dataInicioFmt = config.datainicio ? new Date(config.datainicio).toLocaleDateString('pt-BR') : '__/__/____';
         const dataFimFmt = config.datafim ? new Date(config.datafim).toLocaleDateString('pt-BR') : '__/__/____';
-        
-        const dioceseBody = config.diocese || 'Diocese';
-        const paroquiaBody = config.paroquia || 'Paróquia';
+        const dioceseNome = config.diocese || 'Diocese';
+        const paroquiaNome = config.paroquia || 'Paróquia';
 
-        // Texto fluido - Aumentamos a largura de quebra para 260mm (quase a página toda)
-        const textBody = `participaram do Encontro de Preparação ao Matrimônio e à Vida Familiar, promovido pela Pastoral Familiar da ${dioceseBody} ${paroquiaBody}, no período de ${dataInicioFmt} a ${dataFimFmt}.`;
+        const textBody = `participaram do Encontro de Preparação ao Matrimônio e à Vida Familiar, promovido pela Pastoral Familiar da ${dioceseNome} - ${paroquiaNome}, no período de ${dataInicioFmt} a ${dataFimFmt}.`;
 
-        const splitText = doc.splitTextToSize(textBody, 260); // 260mm permite que o texto flua melhor sem quebras prematuras
-        doc.text(splitText, pageWidth / 2, 125, { align: "center" });
+        const splitBody = doc.splitTextToSize(textBody, 250);
+        doc.text(splitBody, pageWidth / 2, yPos, { align: "center" });
 
         // --- ASSINATURAS ---
         const sigY = 175;
-        
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.5);
         
@@ -263,22 +246,73 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
         doc.setFontSize(11);
         doc.text(`PÁROCO - ${config.paroquia || 'Paróquia'}`, 222, sigY + 12, { align: "center" });
 
-        // Logo central inferior
-        if (!layoutImage) {
-            const logoParoquia = await getDataUrl(config.logo_paroquia || '');
-            if (logoParoquia) {
-                doc.addImage(logoParoquia, 'PNG', (pageWidth / 2) - 15, sigY - 25, 30, 30);
-            }
+        if (!images.layout && images.paroquia) {
+            doc.addImage(images.paroquia, 'PNG', (pageWidth / 2) - 15, sigY - 25, 30, 30);
         }
+    };
 
-        const fileName = `Certificado_${couple.nomeCompletoEle.split(' ')[0]}_e_${couple.nomeCompletoEla.split(' ')[0]}.pdf`;
-        doc.save(fileName);
-        setGeneratingPdf(false);
+    const loadImages = async () => {
+        if (!config) return { layout: null, pastoral: null, diocese: null, paroquia: null };
+        const [layout, pastoral, diocese, paroquia] = await Promise.all([
+            getDataUrl(config.layout_certificado || ''),
+            getDataUrl(config.logo_pastoral || ''),
+            getDataUrl(config.logo_diocese || ''),
+            getDataUrl(config.logo_paroquia || '')
+        ]);
+        return { layout, pastoral, diocese, paroquia };
+    };
+
+    const generateCertificate = async (couple: CoupleData) => {
+        if (!config) { alert("Configurações não carregadas."); return; }
+        setGeneratingPdf(true);
+
+        try {
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            await addCustomFonts(doc);
+            const images = await loadImages();
+            
+            drawCertificatePage(doc, couple, images);
+            
+            const fileName = `Certificado_${couple.nomeCompletoEle.split(' ')[0]}_e_${couple.nomeCompletoEla.split(' ')[0]}.pdf`;
+            doc.save(fileName);
+        } catch (e) {
+            console.error("Erro ao gerar PDF", e);
+            alert("Erro ao gerar o certificado.");
+        } finally {
+            setGeneratingPdf(false);
+        }
+    };
+
+    const generateAllCertificates = async () => {
+        if (!config) { alert("Configurações não carregadas."); return; }
+        if (filteredCouples.length === 0) { alert("Nenhum casal listado para gerar certificados."); return; }
+        
+        setGeneratingAll(true);
+
+        try {
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            await addCustomFonts(doc);
+            const images = await loadImages();
+
+            // Loop através de todos os casais filtrados
+            filteredCouples.forEach((couple, index) => {
+                if (index > 0) {
+                    doc.addPage();
+                }
+                drawCertificatePage(doc, couple, images);
+            });
+
+            doc.save(`Certificados_Completo_EPVM_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.pdf`);
+        } catch (e) {
+            console.error("Erro em lote", e);
+            alert("Ocorreu um erro ao gerar os certificados em lote.");
+        } finally {
+            setGeneratingAll(false);
+        }
     };
 
     const generateReport = () => {
         const doc = new jsPDF('l', 'mm', 'a4');
-
         doc.setFontSize(18);
         doc.text('Relatório Geral de Inscritos - EPVM', 14, 20);
         doc.setFontSize(10);
@@ -338,13 +372,27 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                         <h2 className="text-2xl font-bold text-gray-800">Gestão de Noivos</h2>
                         <p className="text-sm text-gray-500">Total de inscritos: {couples.length}</p>
                     </div>
-                    <div className="flex gap-3 w-full md:w-auto">
+                    <div className="flex gap-3 w-full md:w-auto flex-wrap justify-end">
+                         {/* Botão Gerar Todos */}
+                         <button 
+                            onClick={generateAllCertificates}
+                            disabled={generatingAll || filteredCouples.length === 0}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-all"
+                         >
+                            {generatingAll ? (
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+                            )}
+                            Certificados (Todos)
+                         </button>
+
                          <button 
                             onClick={generateReport}
                             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-all"
                          >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                            Relatório Geral (Lista)
+                            Relatório Geral
                          </button>
                          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 text-gray-500">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -429,19 +477,29 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                                                 <div className="text-xs text-gray-400 mt-1">{couple.email}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                <button 
-                                                    onClick={() => generateCertificate(couple)}
-                                                    disabled={generatingPdf}
-                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md text-sm font-medium transition-colors border border-indigo-200"
-                                                    title="Baixar Certificado A4"
-                                                >
-                                                    {generatingPdf ? (
-                                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                                    ) : (
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                                                    )}
-                                                    Certificado
-                                                </button>
+                                                <div className="flex flex-col gap-2 items-center justify-center">
+                                                    <button 
+                                                        onClick={() => generateCertificate(couple)}
+                                                        disabled={generatingPdf}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-md text-sm font-medium transition-colors border border-indigo-200 w-32 justify-center"
+                                                        title="Baixar Certificado A4"
+                                                    >
+                                                        {generatingPdf ? (
+                                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                        ) : (
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                                                        )}
+                                                        Certificado
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setEditingCouple(couple)}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-white text-gray-700 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors border border-gray-300 w-32 justify-center"
+                                                        title="Editar Cadastro"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                        Editar
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -451,6 +509,16 @@ const CouplesManagementModal: React.FC<CouplesManagementModalProps> = ({ onClose
                     )}
                 </div>
             </div>
+            {editingCouple && (
+                <EditCoupleModal 
+                    couple={editingCouple} 
+                    onClose={() => setEditingCouple(null)} 
+                    onSaveSuccess={() => {
+                        setEditingCouple(null);
+                        loadData(); // Recarrega os dados após salvar
+                    }}
+                />
+            )}
         </div>
     );
 };

@@ -1,3 +1,4 @@
+
 import { CoupleData, ConfigData } from '../types';
 
 // CONFIGURAÇÃO DO SUPABASE
@@ -35,29 +36,31 @@ const parseSupabaseError = (error: any): string => {
     return "Erro inesperado.";
 };
 
-export const saveCoupleData = async (data: CoupleData): Promise<{ success: boolean; error?: string }> => {
-  const client = getSupabaseClient();
-  if (!client) return { success: false, error: "Banco de dados não conectado." };
-  
-  try {
+// Função auxiliar para mapear dados camelCase para snake_case
+const mapToSnakeCase = (data: CoupleData) => {
     const snakeCaseData: { [key: string]: any } = {};
-    
     for (const key in data) {
-        // Ignora createdAt no salvamento, pois é gerado pelo banco
-        if (key === 'createdAt') continue;
+        // Ignora campos que não devem ser enviados ou que não existem na tabela
+        if (key === 'createdAt' || key === 'id') continue;
 
         const value = (data as any)[key];
-        // Converte chaves para minúsculo (ex: cepEle -> cepele)
         const dbKey = key.toLowerCase();
         
-        // Converte 'sim'/'nao' para booleanos para os campos de sacramentos e grupo
         if (['batismoele', 'eucaristiaele', 'crismaele', 'batismoela', 'eucaristiaela', 'crismaela', 'participagrupoele', 'participagrupoela'].includes(dbKey)) {
             snakeCaseData[dbKey] = value === 'sim';
         } else {
             snakeCaseData[dbKey] = value;
         }
     }
+    return snakeCaseData;
+};
 
+export const saveCoupleData = async (data: CoupleData): Promise<{ success: boolean; error?: string }> => {
+  const client = getSupabaseClient();
+  if (!client) return { success: false, error: "Banco de dados não conectado." };
+  
+  try {
+    const snakeCaseData = mapToSnakeCase(data);
     const { error } = await client.from('inscricoes_epvm').insert([snakeCaseData]);
 
     if (error) throw error;
@@ -66,6 +69,37 @@ export const saveCoupleData = async (data: CoupleData): Promise<{ success: boole
   } catch (error: any) {
     return { success: false, error: parseSupabaseError(error) };
   }
+};
+
+export const updateCoupleData = async (id: number, data: CoupleData): Promise<{ success: boolean; error?: string }> => {
+    const client = getSupabaseClient();
+    if (!client) return { success: false, error: "Banco de dados não conectado." };
+
+    try {
+        const snakeCaseData = mapToSnakeCase(data);
+        
+        // Adicionado .select() para confirmar se o registro foi realmente atualizado
+        const { data: updatedData, error } = await client
+            .from('inscricoes_epvm')
+            .update(snakeCaseData)
+            .eq('id', id)
+            .select();
+
+        if (error) throw error;
+
+        // Se o array estiver vazio, significa que o ID não foi encontrado OU
+        // que a política RLS (Row Level Security) bloqueou a atualização silenciosamente.
+        if (!updatedData || updatedData.length === 0) {
+            const msg = "Permissão negada (RLS). Execute no SQL do Supabase: create policy \"Enable update for anon\" on inscricoes_epvm for update using (true);";
+            console.error("FALHA AO ATUALIZAR. Execute este comando no Supabase SQL Editor:", "create policy \"Enable update for anon\" on inscricoes_epvm for update using (true);");
+            throw new Error(msg);
+        }
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Erro no update:", error);
+        return { success: false, error: parseSupabaseError(error) };
+    }
 };
 
 export const fetchAllCouples = async (): Promise<{ success: boolean; data?: CoupleData[]; error?: string }> => {
@@ -79,8 +113,9 @@ export const fetchAllCouples = async (): Promise<{ success: boolean; data?: Coup
 
     // Mapeia os dados do banco (lowercase/snake_case) de volta para o formato da aplicação (camelCase)
     const mappedData: CoupleData[] = data.map((row: any) => ({
+         id: row.id, // Adiciona o ID
          email: row.email,
-         createdAt: row.created_at, // Mapeia a data de criação
+         createdAt: row.created_at, 
          // ELE
          nomeCompletoEle: row.nomecompletoele,
          dataNascimentoEle: row.datanascimentoele,

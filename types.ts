@@ -1,5 +1,6 @@
 
 export interface CoupleData {
+  id?: number; // Identificador único do registro
   email: string;
   createdAt?: string; // Data de criação do registro (banco de dados)
   // Groom's data
