@@ -28,6 +28,7 @@ const initialConfigState: ConfigData = {
     logo_pastoral: '',
     codigo_pix: '',
     logo_pix: '',
+    layout_certificado: '',
 };
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
@@ -42,6 +43,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         logo_diocese: false,
         logo_pastoral: false,
         logo_pix: false,
+        layout_certificado: false,
     });
 
     useEffect(() => {
@@ -86,6 +88,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setUploading(prev => ({ ...prev, [fieldName]: false }));
     };
     
+    // Nova função para limpar imagem
+    const handleImageClear = (fieldName: keyof ConfigData) => {
+        setConfig(prev => ({ ...prev, [fieldName]: '' }));
+        setSuccess('Imagem removida. Clique em "Salvar Alterações" para confirmar.');
+    };
+
     const handleCepBlur = useCallback(async () => {
         if (!config.cep) return;
         const address = await fetchAddressByCep(config.cep);
@@ -106,7 +114,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         setSuccess(null);
         
         // Validação simples de URLs de imagem
-        const imageFields: (keyof ConfigData)[] = ['logo_paroquia', 'logo_diocese', 'logo_pastoral', 'logo_pix'];
+        const imageFields: (keyof ConfigData)[] = ['logo_paroquia', 'logo_diocese', 'logo_pastoral', 'logo_pix', 'layout_certificado'];
         for (const field of imageFields) {
             const url = config[field];
             if (url && !url.match(/\.(jpeg|jpg|gif|png|svg)$|^(data:image)/i) && !url.includes('supabase.co')) {
@@ -124,12 +132,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
         if (result.success) {
             setSuccess('Configurações salvas com sucesso!');
         } else {
+            // Exibe erro detalhado para ajudar no debug (ex: Column not found)
             setError(result.error || 'Falha ao salvar configurações.');
         }
         setSaving(false);
     };
 
-    // Se a gestão estiver aberta, renderiza APENAS o modal de gestão (substituindo este)
     if (isManagementOpen) {
         return <CouplesManagementModal onClose={() => setIsManagementOpen(false)} />;
     }
@@ -198,13 +206,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                            {/* Logos */}
                             <fieldset>
                                 <legend className="text-lg font-semibold text-gray-800 border-b pb-2 mb-4">Identidade Visual</legend>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                
+                                <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                                    <h4 className="font-bold text-blue-800 mb-2">Layout Completo do Certificado</h4>
+                                    <p className="text-sm text-blue-600 mb-3">
+                                        Envie uma imagem (A4 Paisagem) com fundo e bordas. O sistema escreverá apenas os nomes e datas por cima.
+                                    </p>
+                                    <ImageUploadField
+                                        id="layout_certificado"
+                                        label="Imagem de Fundo (A4 Paisagem)"
+                                        value={config.layout_certificado}
+                                        isUploading={uploading.layout_certificado}
+                                        onFileSelect={(file) => handleImageUpload(file, 'layout_certificado')}
+                                        onClear={() => handleImageClear('layout_certificado')}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-4">
                                     <ImageUploadField
                                         id="logo_paroquia"
                                         label="Logo da Paróquia"
                                         value={config.logo_paroquia}
                                         isUploading={uploading.logo_paroquia}
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_paroquia')}
+                                        onClear={() => handleImageClear('logo_paroquia')}
                                     />
                                     <ImageUploadField
                                         id="logo_diocese"
@@ -212,6 +237,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         value={config.logo_diocese}
                                         isUploading={uploading.logo_diocese}
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_diocese')}
+                                        onClear={() => handleImageClear('logo_diocese')}
                                     />
                                     <ImageUploadField
                                         id="logo_pix"
@@ -219,6 +245,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         value={config.logo_pix}
                                         isUploading={uploading.logo_pix}
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_pix')}
+                                        onClear={() => handleImageClear('logo_pix')}
                                     />
                                     <ImageUploadField
                                         id="logo_pastoral"
@@ -226,13 +253,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                                         value={config.logo_pastoral}
                                         isUploading={uploading.logo_pastoral}
                                         onFileSelect={(file) => handleImageUpload(file, 'logo_pastoral')}
+                                        onClear={() => handleImageClear('logo_pastoral')}
                                     />
                                 </div>
                             </fieldset>
                         </div>
                     )}
-                    {error && <p className="mt-4 text-sm text-red-600" role="alert" style={{ whiteSpace: 'pre-wrap' }}>{error}</p>}
-                    {success && <p className="mt-4 text-sm text-green-600" role="status">{success}</p>}
+                    {error && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                            <p className="text-sm text-red-700 font-bold">Erro ao salvar:</p>
+                            <p className="text-xs text-red-600 font-mono mt-1 whitespace-pre-wrap">{error}</p>
+                            <p className="text-xs text-gray-500 mt-2">Dica: Se o erro for "column does not exist", execute o SQL no Supabase.</p>
+                        </div>
+                    )}
+                    {success && (
+                         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                            <p className="text-sm text-green-700">{success}</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-4 bg-gray-50 border-t sticky bottom-0 flex flex-col sm:flex-row justify-end gap-3">

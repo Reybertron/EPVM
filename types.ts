@@ -56,4 +56,5 @@ export interface ConfigData {
   logo_pastoral: string | null;
   codigo_pix: string | null;
   logo_pix: string | null;
+  layout_certificado: string | null; // Novo campo para imagem de fundo do certificado
 }
